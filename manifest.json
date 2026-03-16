@@ -1,0 +1,46 @@
+{
+    "name": "Kuas",
+    "version": "1.0.0",
+    "manifest_version": 3,
+    "description": "A web application for managing football leagues.",
+    "permissions": [
+        "storage",
+        "activeTab"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "index.html",
+        "default_icon": {
+            "16": "icons/icon128.png",
+            "48": "icons/icon128.png",
+            "128": "icons/icon128.png"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*/*"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+    "host_permissions": [
+        "https://sports.core.api.espn.com/*",
+        "http://sports.core.api.espn.com/*",
+        "https://youtube.googleapis.com/*",
+        "https://www.youtube.com/*",
+          "https://*.youtube.com/*",
+          "*://*.youtube.com/*"
+
+    ],
+    "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src https://www.youtube.com;"
+    },
+    "sandbox": {
+    "pages": ["index.html"]
+    }
+}

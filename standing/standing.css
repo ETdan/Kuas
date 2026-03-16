@@ -1,0 +1,117 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 8px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #020617;
+  color: #f9fafb;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.table-wrapper {
+  width: 100%;
+  max-height: 360px;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+#standingTable {
+  width: 100%;
+  min-width: 900px; /* force horizontal scroll on small view */
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  background: #020617;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+thead {
+  background: #111827;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+th,
+td {
+  padding: 4px 6px;
+  text-align: center;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.8);
+  white-space: nowrap;
+}
+
+th {
+  font-weight: 600;
+  font-size: 0.65rem;
+  color: #9ca3af;
+}
+
+/* Make rank & team columns readable */
+#standingTable th:first-child,
+#standingTable td:first-child {
+  width: 40px;
+}
+
+#standingTable th:nth-child(2),
+#standingTable td:nth-child(2) {
+  text-align: left;
+  min-width: 180px;
+}
+
+.team-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  background: #020617;
+  border-radius: 999px;
+  padding: 1px;
+}
+
+.team-name {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #e5e7eb;
+}
+
+.standing-row:nth-child(even) {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.standing-row:nth-child(odd) {
+  background: rgba(17, 24, 39, 0.9);
+}
+
+.standing-row:hover {
+  background: rgba(30, 64, 175, 0.9);
+}
+
+/* Scrollbar styling */
+.table-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 999px;
+}
+

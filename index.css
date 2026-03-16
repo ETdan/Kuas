@@ -1,0 +1,100 @@
+/* Root / popup layout */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 12px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #050816;
+  color: #f9fafb;
+  width: 520px; /* roomier extension popup */
+  min-height: 640px;
+}
+
+#main_page {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e5e7eb;
+}
+
+#available_leagues {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+#leagues {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* League cards */
+.league-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: radial-gradient(circle at top, #1f2937 0, #020617 60%);
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+  cursor: pointer;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out,
+    border-color 0.15s ease-out, background 0.15s ease-out;
+}
+
+.league-container:hover {
+  transform: translateY(-2px);
+  border-color: #60a5fa;
+  box-shadow: 0 16px 35px rgba(37, 99, 235, 0.4);
+  background: radial-gradient(circle at top, #111827 0, #020617 70%);
+}
+
+.league-container:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.8);
+}
+
+.league-image {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 999px;
+  background: #020617;
+  padding: 4px;
+}
+
+.league-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  color: #e5e7eb;
+  line-height: 1.2;
+}
+
+/* Scrollbar */
+#leagues::-webkit-scrollbar {
+  width: 6px;
+}
+
+#leagues::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#leagues::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 999px;
+}
