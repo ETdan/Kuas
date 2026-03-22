@@ -41,7 +41,7 @@ document.querySelectorAll(".nav-link").forEach((link) => {
 
 document.getElementById("home").addEventListener("click", (e) => {
   e.preventDefault();
-  console.log("//////////////");
+  // console.log("//////////////");
 
   window.location.href = "/index.html";
 });

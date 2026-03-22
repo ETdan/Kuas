@@ -53,4 +53,3 @@ getLeagues().then((leagues) => {
     leaguesContainer.appendChild(leagueDiv);
   });
 });
-

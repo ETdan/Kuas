@@ -3,13 +3,8 @@ var matchesContainer = document.getElementById("matchesContainer");
 var fromInput = document.getElementById("fromDate");
 var toInput = document.getElementById("toDate");
 var dateError = document.getElementById("dateError");
-var slug = localStorage.getItem("leagueSlug");
-// console.log(slug, "/////////");
-
-var STORAGE_KEYS = {
-  from: "matchesFromDate",
-  to: "matchesToDate",
-};
+var teamId = localStorage.getItem("teamId");
+// console.log(teamId, "/////////");
 
 var cache = {
   team: new Map(),
@@ -18,36 +13,6 @@ var cache = {
   match: new Map(),
   score: new Map(),
 };
-
-function toInputValue(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function toApiDate(dateStr) {
-  // from YYYY-MM-DD to YYYYMMDD
-  return dateStr.replace(/-/g, "");
-}
-
-function validateDates() {
-  dateError.textContent = "";
-  if (!fromInput.value || !toInput.value) {
-    return false;
-  }
-  if (fromInput.value > toInput.value) {
-    dateError.textContent = "From date cannot be after To date.";
-    return false;
-  }
-  return true;
-}
-
-function persistDates() {
-  if (!fromInput?.value || !toInput?.value) return;
-  localStorage.setItem(STORAGE_KEYS.from, fromInput.value);
-  localStorage.setItem(STORAGE_KEYS.to, toInput.value);
-}
 
 function formatKickoff(dateStr) {
   if (!dateStr) return "";
@@ -89,78 +54,58 @@ function getScoreValue(scoreJson) {
 }
 
 async function loadMatches() {
-  if (!slug) return;
-  if (!validateDates()) return;
+  if (!teamId) return;
 
   // Clear current results before loading a new date range
   matchesContainer.innerHTML = "";
   matches = [];
 
-  const fromApi = toApiDate(fromInput.value);
-  const toApi = toApiDate(toInput.value);
-
-  const url = `http://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/events?dates=${fromApi}-${toApi}`;
+  const url = `http://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/${teamId}/schedule?fixture=true`;
 
   const response = await fetch(url);
   const data = await response.json();
 
-  // Load match detail refs in parallel (keeps UI snappy)
-  const matchDatas = await Promise.all(
-    (data.items ?? []).map((m) => getMatches(m.$ref)),
-  );
-  matches = matchDatas.filter(Boolean);
-
-  for (const match of matches) {
+  for (const match of data?.events) {
     const card = await renderMatchCard(match);
     if (card) matchesContainer.appendChild(card);
   }
 }
 
 async function renderMatchCard(match) {
-  // Each event has one or more competitions; we use the first one.
-  const competition = match?.competitions?.[0];
-  const competitors = competition?.competitors ?? [];
-  if (!competition || competitors.length < 2) return null;
+  const competitions = match?.competitions[0] ?? [];
 
+  if (
+    !competitions ||
+    !competitions.competitors ||
+    competitions.competitors.length < 2
+  )
+    return null;
   // Find home/away teams (fallback to array order if not present)
-  const home = competitors.find((c) => c.homeAway === "home") ?? competitors[0];
-  const away = competitors.find((c) => c.homeAway === "away") ?? competitors[1];
+  const homeTeam = competitions.competitors[0].team;
+  const awayTeam = competitions.competitors[1].team;
 
   // Fetch referenced resources (team info, venue, and game status)
-  const [homeTeam, awayTeam, venue, statusJson, homeScoreJson, awayScoreJson] =
-    await Promise.all([
-      getTeam(home.team?.$ref),
-      getTeam(away.team?.$ref),
-      competition.venue,
-      getStatus(competition.status?.$ref),
-      getScore(home.score?.$ref),
-      getScore(away.score?.$ref),
-    ]);
+  const venue = competitions.venue;
 
-  const kickoff = formatKickoff(competition.date ?? formatKickoff(match.date));
-  const venueName = venue?.fullName ?? venue?.shortName ?? "";
+  const kickoff = formatKickoff(competitions.date);
+  const venueName = venue?.fullName ?? "";
   const venueText = venueName ? `${venueName}` : "";
-
-  const meta = statusMeta(statusJson);
 
   const homeName = homeTeam?.displayName ?? "Home";
   const awayName = awayTeam?.displayName ?? "Away";
+
   const homeSlug = homeTeam?.slug ?? "";
   const awaySlug = awayTeam?.slug ?? "";
+
   const homeLogo = homeTeam?.logos?.[0]?.href ?? "";
   const awayLogo = awayTeam?.logos?.[0]?.href ?? "";
-
-  // Score is only relevant for LIVE or Finished matches.
-  const homeScore = getScoreValue(homeScoreJson);
-  const awayScore = getScoreValue(awayScoreJson);
-  const showScore = meta.state === "in" || meta.state === "post";
 
   const card = document.createElement("div");
   card.className = "match-card";
   card.addEventListener("click", () => {
     localStorage.setItem(
       "match-name",
-      match.name + " " + formatKickoff(match.date),
+      competitions.name + " " + formatKickoff(competitions.date),
     );
     window.location.href = "../highlight/highlight.html";
   });
@@ -173,23 +118,7 @@ async function renderMatchCard(match) {
   kickoffEl.className = "match-kickoff";
   kickoffEl.textContent = kickoff;
 
-  const statusEl = document.createElement("div");
-  statusEl.className = `match-status status-${meta.state}`;
-  statusEl.title = meta.detail;
-
-  const statusPill = document.createElement("span");
-  statusPill.className = "status-pill";
-  statusPill.textContent = meta.label;
-
-  const statusDetail = document.createElement("span");
-  statusDetail.className = "status-detail";
-  statusDetail.textContent = meta.detail;
-
-  statusEl.appendChild(statusPill);
-  statusEl.appendChild(statusDetail);
-
   top.appendChild(kickoffEl);
-  top.appendChild(statusEl);
 
   // --- teams row (home / score / away) ---
   const teams = document.createElement("div");
@@ -222,13 +151,6 @@ async function renderMatchCard(match) {
   homeTeamEl.appendChild(homeNameEl);
   homeTeamEl.appendChild(homeSideEl);
 
-  // Middle block: score (LIVE/FT) or "vs" (UPCOMING)
-  const middle = document.createElement("div");
-  middle.className = showScore ? "match-score" : "match-vs";
-  middle.textContent = showScore
-    ? `${safeText(homeScore)} - ${safeText(awayScore)}`
-    : "vs";
-
   // Away team block
   const awayTeamEl = document.createElement("div");
   awayTeamEl.className = "match-team";
@@ -257,7 +179,6 @@ async function renderMatchCard(match) {
   awayTeamEl.appendChild(awaySideEl);
 
   teams.appendChild(homeTeamEl);
-  teams.appendChild(middle);
   teams.appendChild(awayTeamEl);
 
   // --- bottom row (venue) ---
@@ -316,35 +237,6 @@ async function getScore(url) {
   const p = fetch(url).then((r) => r.json());
   cache.score.set(url, p);
   return p;
-}
-
-// initialise default dates and listeners
-if (fromInput && toInput) {
-  const savedFrom = localStorage.getItem(STORAGE_KEYS.from);
-  const savedTo = localStorage.getItem(STORAGE_KEYS.to);
-
-  // Restore last selected range (fallback to today -> next 7 days)
-  if (savedFrom && savedTo) {
-    fromInput.value = savedFrom;
-    toInput.value = savedTo;
-    persistDates();
-  } else {
-    const today = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
-    fromInput.value = toInputValue(today);
-    toInput.value = toInputValue(nextWeek);
-    persistDates();
-  }
-
-  fromInput.addEventListener("change", () => {
-    persistDates();
-    loadMatches();
-  });
-  toInput.addEventListener("change", () => {
-    persistDates();
-    loadMatches();
-  });
 }
 
 if (slug != null) {

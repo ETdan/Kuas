@@ -1,0 +1,39 @@
+/* club card styles */
+.club {
+	background: #222;
+	color: #fff;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 4px;
+	border-radius: 8px;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+	position: relative;
+	overflow: hidden;
+	min-width: 80px;
+	max-width: 120px;
+	height: 110px;
+}
+
+.club-logo {
+	width: 36px;
+	height: 36px;
+	object-fit: contain;
+	margin-bottom: 8px;
+}
+
+.club-name {
+	font-weight: bold;
+	font-size: 0.9em;
+	text-align: center;
+	width: 100%;
+}
+
+#clubs-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    justify-content: center;
+    padding: 16px;
+}
