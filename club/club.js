@@ -55,27 +55,6 @@ function renderTeams(teams) {
   }
 }
 
-function loadPage(page) {
-  const fullPagePath = "../" + page + "/" + page;
-  setActiveNav(page);
-  fetch(fullPagePath + ".html")
-    .then((response) => response.text())
-    .then((html) => {
-      content.innerHTML = html;
-      // Dynamically load JS
-      const script = document.createElement("script");
-      script.src = fullPagePath + ".js";
-      content.appendChild(script);
-      // Dynamically load CSS
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = fullPagePath + ".css";
-      document.head.appendChild(link);
-    })
-    .catch(() => {
-      content.innerHTML = "<p>Page not found.</p>";
-    });
-}
 getTeams();
 
 // {
