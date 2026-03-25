@@ -30,6 +30,7 @@ async function loadMatches() {
 
   // Clear current results before loading a new date range
   clubContent.innerHTML = "";
+  clubContent.innerHTML = "Loading Fixtures...";
   matchesContainer.focus();
   matches = [];
 
@@ -37,6 +38,7 @@ async function loadMatches() {
 
   const response = await fetch(teamsUrl);
   const data = await response.json();
+  clubContent.innerHTML = "";
 
   for (const match of data?.events) {
     const card = await renderMatchCard(match);
@@ -164,18 +166,20 @@ async function renderMatchCard(match) {
   return card;
 }
 async function renderPlayers() {
+  clubContent.innerHTML = "";
+  clubContent.innerHTML = "Loading Players...";
+  playersContainer.focus();
+  var players = [];
   const playerUrl = `http://sports.core.api.espn.com/v2/sports/soccer/leagues/${league}/seasons/2025/teams/${teamId}/athletes?lang=en&region=us`;
   const response = await fetch(playerUrl);
   const data = await response.json();
-  var players = [];
+  clubContent.innerHTML = "";
   for (const playerRef of data?.items) {
     const response = await fetch(playerRef.$ref);
     const data = await response.json();
     var player = await renderPlayerCard(data);
     players.push(player);
   }
-  clubContent.innerHTML = "";
-  playersContainer.focus();
 
   clubContent.append(...players);
   // return players;
@@ -279,210 +283,6 @@ async function renderPlayerCard(player) {
 
   return card;
 }
-/**
- * {
-    "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/seasons/2025/athletes/169532?lang=en&region=us",
-    "id": "169532",
-    "uid": "s:600~a:169532",
-    "type": "soccer",
-    "guid": "75eafe6b-51d5-f593-082b-6a4f1d789d52",
-    "firstName": "Kepa",
-    "middleName": "",
-    "lastName": "Arrizabalaga",
-    "fullName": "Kepa Arrizabalaga",
-    "displayName": "Kepa Arrizabalaga",
-    "shortName": "K Arrizabalaga",
-    "weight": 183.0,
-    "displayWeight": "183 lbs",
-    "height": 74.0,
-    "displayHeight": "6' 2\"",
-    "age": 31,
-    "dateOfBirth": "1994-10-03T07:00Z",
-    "gender": "MALE",
-    "links": [
-        {
-            "language": "en-US",
-            "rel": [
-                "playercard",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/_/id/169532/kepa-arrizabalaga",
-            "text": "Player Card",
-            "shortText": "Player Card",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "stats",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/stats/_/id/169532/kepa-arrizabalaga",
-            "text": "Stats",
-            "shortText": "Stats",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "splits",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/splits/_/id/169532/kepa-arrizabalaga",
-            "text": "Splits",
-            "shortText": "Splits",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "gamelog",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/matches/_/id/169532/kepa-arrizabalaga",
-            "text": "Matches",
-            "shortText": "Matches",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "news",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/news/_/id/169532/kepa-arrizabalaga",
-            "text": "News",
-            "shortText": "News",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "bio",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/bio/_/id/169532/kepa-arrizabalaga",
-            "text": "Bio",
-            "shortText": "Bio",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "overview",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/_/id/169532/kepa-arrizabalaga",
-            "text": "Overview",
-            "shortText": "Overview",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "transfers",
-                "desktop",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/transfers/_/id/169532/kepa-arrizabalaga",
-            "text": "Transfers",
-            "shortText": "Transfers",
-            "isExternal": false,
-            "isPremium": false
-        },
-        {
-            "language": "en-US",
-            "rel": [
-                "transfers",
-                "mobile",
-                "athlete"
-            ],
-            "href": "https://www.espn.com/soccer/player/transfers/_/id/169532/kepa-arrizabalaga",
-            "text": "Transfers",
-            "shortText": "Transfers",
-            "isExternal": false,
-            "isPremium": false
-        }
-    ],
-    "birthPlace": {},
-    "citizenship": "Spain",
-    "citizenshipCountry": {
-        "alternateId": "13",
-        "abbreviation": "ESP"
-    },
-    "slug": "kepa-arrizabalaga",
-    "jersey": "13",
-    "flag": {
-        "href": "https://a.espncdn.com/i/teamlogos/countries/500/esp.png",
-        "alt": "Spain",
-        "rel": [
-            "country-flag"
-        ]
-    },
-    "position": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/positions/1?lang=en&region=us",
-        "id": "1",
-        "name": "Goalkeeper",
-        "displayName": "Goalkeeper",
-        "abbreviation": "G",
-        "leaf": true
-    },
-    "injuries": [],
-    "linked": true,
-    "team": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/seasons/2025/teams/359?lang=en&region=us"
-    },
-    "statistics": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/seasons/2025/types/1/athletes/169532/statistics?lang=en&region=us"
-    },
-    "notes": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/seasons/2025/athletes/169532/notes?lang=en&region=us"
-    },
-    "active": true,
-    "eventLog": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/seasons/2025/athletes/169532/eventlog?lang=en&region=us"
-    },
-    "status": {
-        "id": "1",
-        "name": "Active",
-        "type": "active",
-        "abbreviation": "Active"
-    },
-    "seasons": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/athletes/169532/seasons?lang=en&region=us"
-    },
-    "leagues": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/athletes/169532/leagues?lang=en&region=us"
-    },
-    "transactions": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/athletes/169532/transactions?lang=en&region=us"
-    },
-    "events": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/athletes/169532/events?lang=en&region=us"
-    },
-    "defaultLeague": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1?lang=en&region=us"
-    },
-    "profiled": false,
-    "defaultTeam": {
-        "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/teams/359?lang=en&region=us"
-    }
-}
- */
 if (slug != null) {
   loadMatches();
 }
