@@ -34,13 +34,13 @@ async function init() {
 
 async function getHighlights(query) {
   const instance = "https://yewtu.be"; // You can swap this for any Invidious instance
-  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=date`;
+  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=date&limit=5`;
   try {
     const response = await fetch(url);
     const results = await response.json();
 
     // Results are already clean JSON objects
-    return results.map((video) => ({
+    return results.slice(0, 5).map((video) => ({
       title: video.title,
       id: video.videoId,
       author: video.author,
