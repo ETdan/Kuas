@@ -173,13 +173,13 @@ async function renderPlayers() {
   const playerUrl = `http://sports.core.api.espn.com/v2/sports/soccer/leagues/${league}/seasons/2025/teams/${teamId}/athletes?lang=en&region=us`;
   const response = await fetch(playerUrl);
   const data = await response.json();
-  clubContent.innerHTML = "";
   for (const playerRef of data?.items) {
     const response = await fetch(playerRef.$ref);
     const data = await response.json();
     var player = await renderPlayerCard(data);
     players.push(player);
   }
+  clubContent.innerHTML = "";
 
   clubContent.append(...players);
   // return players;
