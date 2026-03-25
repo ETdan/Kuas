@@ -1,4 +1,4 @@
-leaguesContainer = document.getElementById("leagues");
+var leaguesContainer = document.getElementById("leagues");
 const leagues = [];
 
 async function getLeagues() {

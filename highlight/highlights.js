@@ -1,5 +1,4 @@
 var LOCAL_STORAGE_KEY = "match-name";
-var YOUTUBE_API_KEY = "AIzaSyAN8e3dUGj_802aU1fWlukez5EO5Ckjc9o";
 var HIGHLIGHTS_CACHE_PREFIX = "yt-highlights:v2:";
 var CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -15,12 +14,13 @@ async function init() {
   }
 
   const query = `${match} highlights`;
+  // const query = "Manchester United vs Bournemouth highlights";
 
   try {
     console.log(query, "query");
 
     const highlights = await getHighlights(query);
-    // console.log(highlights, "/////////////heighlights");
+    console.log(highlights, "/////////////heighlights");
 
     renderHighlights(highlights);
   } catch (error) {
@@ -33,52 +33,22 @@ async function init() {
 }
 
 async function getHighlights(query) {
-  const cacheKey = HIGHLIGHTS_CACHE_PREFIX + query.toLowerCase();
-  const cached = readCache(cacheKey);
+  const instance = "https://yewtu.be"; // You can swap this for any Invidious instance
+  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=date`;
+  try {
+    const response = await fetch(url);
+    const results = await response.json();
 
-  if (cached) {
-    return cached;
-  }
-
-  const params = new URLSearchParams({
-    part: "snippet",
-    maxResults: "5",
-    q: query,
-    type: "video",
-    videoEmbeddable: "true",
-    videoSyndicated: "true",
-    key: YOUTUBE_API_KEY,
-  });
-  const url = `https://www.googleapis.com/youtube/v3/search?${params.toString()}`;
-
-  const res = await fetch(url);
-  const data = await safeJson(res);
-
-  if (!res.ok) {
-    const firstError =
-      data && data.error && data.error.errors && data.error.errors[0];
-    const reason = firstError && firstError.reason;
-    const message =
-      (data && data.error && data.error.message) ||
-      `YouTube API request failed with status ${res.status}`;
-    throw new Error(reason ? `${message} (reason: ${reason})` : message);
-  }
-
-  if (!data.items) return [];
-
-  const highlights = data.items
-    .filter((v) => v.id && v.id.videoId)
-    .map((v) => ({
-      id: v.id.videoId,
-      title: v.snippet.title,
-      thumbnail:
-        (v.snippet.thumbnails.medium && v.snippet.thumbnails.medium.url) ||
-        (v.snippet.thumbnails.default && v.snippet.thumbnails.default.url) ||
-        "",
+    // Results are already clean JSON objects
+    return results.map((video) => ({
+      title: video.title,
+      id: video.videoId,
+      author: video.author,
+      thumbnail: video.videoThumbnails[0].url,
     }));
-
-  writeCache(cacheKey, highlights);
-  return highlights;
+  } catch (error) {
+    console.error("Invidious search failed:", error);
+  }
 }
 
 async function safeJson(response) {
@@ -139,39 +109,38 @@ function renderHighlights(highlights) {
   highlightsContainer.innerHTML = "";
 
   highlights.forEach((highlight) => {
-    const iframeContainer = document.createElement("div");
-    iframeContainer.className = "highlight-video";
+    const container = document.createElement("div");
+    container.className = "highlight-video";
 
+    // Always show thumbnail as a clickable link to YouTube
+    const link = document.createElement("a");
     if (highlight.id) {
-      const iframe = document.createElement("iframe");
-      iframe.src = buildEmbedUrl(highlight.id);
-
-      iframe.width = "560";
-      iframe.height = "315";
-      iframe.setAttribute("frameborder", "0");
-      iframe.setAttribute(
-        "allow",
-        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
-      );
-      iframe.setAttribute("allowfullscreen", "true");
-      iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-      iframeContainer.appendChild(iframe);
+      link.href = `https://www.youtube.com/watch?v=${highlight.id}`;
     } else {
-      // Fallback: show thumbnail and link
-      const link = document.createElement("a");
       link.href = highlight.thumbnail;
-      link.target = "_blank";
-      const img = document.createElement("img");
-      img.src = highlight.thumbnail;
-      img.alt = highlight.title;
-      link.appendChild(img);
-      iframeContainer.appendChild(link);
     }
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+
+    const img = document.createElement("img");
+    img.src = highlight.thumbnail;
+    img.alt = highlight.title;
+    img.className = "highlight-thumbnail";
+    link.appendChild(img);
+    container.appendChild(link);
 
     const titleObj = document.createElement("h6");
     titleObj.textContent = highlight.title;
-    iframeContainer.appendChild(titleObj);
-    highlightsContainer.appendChild(iframeContainer);
+    container.appendChild(titleObj);
+
+    if (highlight.author) {
+      const authorObj = document.createElement("div");
+      authorObj.className = "highlight-author";
+      authorObj.textContent = `By: ${highlight.author}`;
+      container.appendChild(authorObj);
+    }
+
+    highlightsContainer.appendChild(container);
   });
 }
 

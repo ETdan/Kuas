@@ -158,10 +158,11 @@ async function renderMatchCard(match) {
   const card = document.createElement("div");
   card.className = "match-card";
   card.addEventListener("click", () => {
-    localStorage.setItem(
-      "match-name",
-      match.name + " " + formatKickoff(match.date),
-    );
+    localStorage.setItem("match-name", match.name);
+    // localStorage.setItem(
+    //   "match-name",
+    //   match.name + " " + formatKickoff(match.date),
+    // );
     window.location.href = "../highlight/highlight.html";
   });
 

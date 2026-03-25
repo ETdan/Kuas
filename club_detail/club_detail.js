@@ -30,6 +30,7 @@ async function loadMatches() {
 
   // Clear current results before loading a new date range
   clubContent.innerHTML = "";
+  matchesContainer.focus();
   matches = [];
 
   const teamsUrl = `http://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/${teamId}/schedule?fixture=true`;
@@ -42,24 +43,6 @@ async function loadMatches() {
     if (card) clubContent.appendChild(card);
   }
 }
-
-// async function loadPlayers() {
-//   if (!teamId) return;
-
-//   // Clear current results before loading a new date range
-//   clubContent.innerHTML = "";
-//   players = [];
-
-//   const teamsUrl = `http://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/${teamId}/schedule?fixture=true`;
-
-//   const response = await fetch(teamsUrl);
-//   const data = await response.json();
-
-//   for (const match of data?.events) {
-//     const card = await renderPlayers(match);
-//     if (card) clubContent.appendChild(card);
-//   }
-// }
 
 async function renderMatchCard(match) {
   const competitions = match?.competitions[0] ?? [];
@@ -121,9 +104,8 @@ async function renderMatchCard(match) {
   homeNameEl.textContent = homeName;
   homeNameEl.addEventListener("click", (e) => {
     e.stopPropagation();
-    localStorage.setItem("clubSlug", homeSlug);
-    localStorage.setItem("clubName", homeName);
-    window.location.href = "../club/club.html";
+    localStorage.setItem("teamId", homeTeam.id);
+    loadPage("club_detail");
   });
 
   const homeSideEl = document.createElement("span");
@@ -148,9 +130,8 @@ async function renderMatchCard(match) {
   awayNameEl.textContent = awayName;
   awayNameEl.addEventListener("click", (e) => {
     e.stopPropagation();
-    localStorage.setItem("clubSlug", awaySlug);
-    localStorage.setItem("clubName", awayName);
-    window.location.href = "../club/club.html";
+    localStorage.setItem("teamId", awayTeam.id);
+    loadPage("club_detail");
   });
 
   const awaySideEl = document.createElement("span");
@@ -194,6 +175,8 @@ async function renderPlayers() {
     players.push(player);
   }
   clubContent.innerHTML = "";
+  playersContainer.focus();
+
   clubContent.append(...players);
   // return players;
 }
