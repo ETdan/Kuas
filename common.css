@@ -1,0 +1,229 @@
+/* ============================================================
+   common.css — Shared Design System & UI Primitives
+   Kuas Matchday Edition / Football Art Theme
+   ============================================================ */
+
+:root {
+  --art-pitch-dark: #080C16;
+  --art-pitch-deep: #0D1322;
+  --art-surface: rgba(16, 24, 40, 0.85);
+  --art-surface-hover: rgba(26, 38, 64, 0.85);
+  --art-border: rgba(255, 255, 255, 0.08);
+  --art-border-hover: rgba(255, 209, 0, 0.35);
+
+  --art-cream: #F5F1E8;
+  --art-cream-muted: #8E9BAE;
+  --art-cream-dim: #5A6980;
+
+  --art-yellow: #FFD100;
+  --art-yellow-glow: rgba(255, 209, 0, 0.25);
+  --art-red: #D8232A;
+  --art-red-glow: rgba(216, 35, 42, 0.35);
+  --art-green: #10B981;
+  --art-green-glow: rgba(16, 185, 129, 0.3);
+
+  --font-display: 'Bebas Neue', 'Impact', sans-serif;
+  --font-body: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+/* ============================================================
+   Universal Sleek Dark Scrollbar
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 209, 0, 0.4);
+}
+
+/* ============================================================
+   Loaders & Spinners
+   ============================================================ */
+.loader {
+  width: 26px;
+  height: 26px;
+  border: 2.5px solid rgba(255, 209, 0, 0.2);
+  border-top-color: var(--art-yellow);
+  border-radius: 50%;
+  animation: kuasSpin 0.75s linear infinite;
+  display: inline-block;
+}
+
+@keyframes kuasSpin {
+  to { transform: rotate(360deg); }
+}
+
+.view-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 48px 16px;
+  color: var(--art-cream-muted);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Info & Error Messages
+   ============================================================ */
+.info-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--art-cream-muted);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+.error-msg {
+  color: #F87171;
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 16px;
+}
+
+/* Error Resilience Card */
+.error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 28px 18px;
+  background: var(--art-surface);
+  border: 1px solid rgba(216, 35, 42, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  margin: 10px 0;
+}
+
+.error-card-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.error-card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  color: var(--art-cream);
+}
+
+.error-card-desc {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  color: var(--art-cream-muted);
+  line-height: 1.4;
+  max-width: 380px;
+}
+
+.retry-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 209, 0, 0.12);
+  border: 1px solid rgba(255, 209, 0, 0.35);
+  border-radius: 6px;
+  color: var(--art-yellow);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.retry-action-btn:hover {
+  background: var(--art-yellow);
+  color: var(--art-pitch-dark);
+  box-shadow: 0 0 10px var(--art-yellow-glow);
+}
+
+/* ============================================================
+   Buttons & Navigation Controls
+   ============================================================ */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--art-border);
+  border-radius: 8px;
+  color: var(--art-cream);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--art-yellow);
+  color: var(--art-yellow);
+}
+
+.back-btn .back-arrow {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+/* Standard Chip */
+.chip {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--art-border);
+  border-radius: 20px;
+  color: var(--art-cream-muted);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--art-cream);
+}
+
+.chip.active {
+  background: var(--art-yellow);
+  color: var(--art-pitch-dark);
+  border-color: var(--art-yellow);
+  box-shadow: 0 0 10px var(--art-yellow-glow);
+}

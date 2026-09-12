@@ -4,29 +4,11 @@
  */
 
 import { Storage } from "../storage.js";
-import { escapeHTML, ensureHttps, formatKickoff, toInputValue, toApiDate } from "../utils.js";
+import { toInputValue, toApiDate, renderErrorState } from "../utils.js";
 import { getEvents, getMatchRef, getTeamRef, getStatusRef, getScoreRef } from "../api.js";
-
-import { renderMatchCardHTML } from "../components/match_card.js";
+import { renderMatchCardHTML, normalizeEspnEvent } from "../components/match_card.js";
 
 const STORAGE_KEYS = { from: "matchesFromDate", to: "matchesToDate" };
-
-// ---------------------------------------------------------------------------
-// Data helpers
-// ---------------------------------------------------------------------------
-
-function statusMeta(statusJson) {
-  const state = statusJson?.type?.state ?? "pre";
-  const desc  = statusJson?.type?.description ?? "";
-  const clock = statusJson?.displayClock ?? "";
-  if (state === "in")   return { state, label: "● LIVE", detail: clock ? `${clock}'` : "IN PLAY" };
-  if (state === "post") return { state, label: "FT",   detail: desc || "Finished" };
-  return { state: "pre", label: "UPCOMING", detail: desc || "Not started" };
-}
-
-function getScoreValue(scoreJson) {
-  return scoreJson?.value ?? scoreJson?.displayValue ?? scoreJson?.score ?? "0";
-}
 
 async function buildMatchData(match) {
   const competition  = match?.competitions?.[0];
@@ -44,32 +26,35 @@ async function buildMatchData(match) {
     getScoreRef(away.score?.$ref),
   ]);
 
-  const venue     = competition.venue;
-  const kickoff   = formatKickoff(competition.date ?? match.date);
-  const venueName = venue?.fullName ?? venue?.shortName ?? "";
-  const meta      = statusMeta(statusJson);
-  const eventId   = String(match.id || competition.id || "");
-
-  return {
-    eventId,
-    matchName: match.name || "",
-    kickoff,
-    state:     meta.state,
-    label:     meta.label,
-    detail:    meta.detail,
-    homeName:  homeTeam?.displayName ?? "Home",
-    homeSlug:  homeTeam?.slug ?? "",
-    homeId:    homeTeam?.id ?? "",
-    homeLogo:  ensureHttps(homeTeam?.logos?.[0]?.href ?? ""),
-    awayName:  awayTeam?.displayName ?? "Away",
-    awaySlug:  awayTeam?.slug ?? "",
-    awayId:    awayTeam?.id ?? "",
-    awayLogo:  ensureHttps(awayTeam?.logos?.[0]?.href ?? ""),
-    showScore: meta.state === "in" || meta.state === "post",
-    homeScore: getScoreValue(homeScoreJson),
-    awayScore: getScoreValue(awayScoreJson),
-    venueName,
+  // Construct synthetic populated event to pass into normalizeEspnEvent
+  const syntheticEvent = {
+    id: match.id || competition.id,
+    name: match.name,
+    date: match.date || competition.date,
+    competitions: [
+      {
+        ...competition,
+        venue: competition.venue,
+        status: statusJson || competition.status,
+        competitors: [
+          {
+            ...home,
+            homeAway: "home",
+            team: homeTeam || home.team,
+            score: homeScoreJson?.value ?? homeScoreJson?.displayValue ?? homeScoreJson?.score ?? home.score,
+          },
+          {
+            ...away,
+            homeAway: "away",
+            team: awayTeam || away.team,
+            score: awayScoreJson?.value ?? awayScoreJson?.displayValue ?? awayScoreJson?.score ?? away.score,
+          },
+        ],
+      },
+    ],
   };
+
+  return normalizeEspnEvent(syntheticEvent);
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +158,11 @@ export async function init(container, navigate) {
       matchesContainer.innerHTML = validCards.map(renderMatchCardHTML).join("");
     } catch (err) {
       console.error("Error loading matches:", err);
-      matchesContainer.innerHTML = `<div class="error-msg">Failed to load matches.</div>`;
+      renderErrorState(
+        matchesContainer,
+        "Failed to load matches for the selected date range. Please try again.",
+        () => loadMatches()
+      );
     }
   }
 

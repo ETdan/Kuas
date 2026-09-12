@@ -3,6 +3,8 @@
    Matchday Edition / Panini Trading Card Theme
    ================================================ */
 
+@import url("../common.css");
+
 /* ---- View Header & Tabs ---- */
 .club-detail-header {
   display: flex;

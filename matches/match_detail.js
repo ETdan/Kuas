@@ -5,9 +5,9 @@
  */
 
 import { Storage } from "../storage.js";
-import { escapeHTML, ensureHttps } from "../utils.js";
+import { escapeHTML, ensureHttps, formatKickoff } from "../utils.js";
 import { getMatchSummary } from "../api.js";
-import { getHighlights, renderHighlightsHTML } from "../highlight/highlights.js";
+import { getHighlights, renderHighlightsHTML, normalizeMatchQuery } from "../highlight/highlights.js";
 
 function renderShellHTML(matchTitle) {
   return `
@@ -76,7 +76,7 @@ function renderContentHTML(data, meta) {
   const kickoff = meta.kickoff || "";
   const leagueName = header.season?.displayName || comp.league?.name || "";
 
-  const activeTab = meta.initialTab || "timeline";
+  const activeTab = meta.initialTab || (isPre ? "h2h" : "timeline");
 
   // 1. Scoreboard Banner
   let centerScoreHTML = "";
@@ -282,18 +282,34 @@ function renderContentHTML(data, meta) {
     }
   }
 
-  // 4. Sub-tabs Navigation
+  // 4. Lineups & Tactical Formations
+  const lineupsHTML = renderLineupsHTML(data, meta);
+
+  // 5. Head-to-Head & Recent Form
+  const h2hHTML = renderH2HAndFormHTML(data, meta);
+
+  // 6. Sub-tabs Navigation
   return `
     ${scoreboardHTML}
 
     <div class="summary-nav-tabs">
       <button class="summary-tab-btn ${activeTab === "timeline" ? "active" : ""}" data-tab="timeline">⏱️ TIMELINE</button>
-      <button class="summary-tab-btn ${activeTab === "stats" ? "active" : ""}" data-tab="stats">📊 TEAM STATS</button>
-      <button class="summary-tab-btn ${activeTab === "highlights" ? "active" : ""}" data-tab="highlights">🎬 HIGHLIGHTS</button>
+      <button class="summary-tab-btn ${activeTab === "lineups" ? "active" : ""}" data-tab="lineups">📋 LINEUPS</button>
+      <button class="summary-tab-btn ${activeTab === "h2h" ? "active" : ""}" data-tab="h2h">⚔️ H2H & FORM</button>
+      <button class="summary-tab-btn ${activeTab === "stats" ? "active" : ""}" data-tab="stats">📊 STATS</button>
+      <button class="summary-tab-btn ${activeTab === "highlights" ? "active" : ""}" data-tab="highlights">🎬 REELS</button>
     </div>
 
     <div class="summary-tab-section ${activeTab === "timeline" ? "active" : ""}" id="tab-timeline">
       ${timelineHTML}
+    </div>
+
+    <div class="summary-tab-section ${activeTab === "lineups" ? "active" : ""}" id="tab-lineups">
+      ${lineupsHTML}
+    </div>
+
+    <div class="summary-tab-section ${activeTab === "h2h" ? "active" : ""}" id="tab-h2h">
+      ${h2hHTML}
     </div>
 
     <div class="summary-tab-section ${activeTab === "stats" ? "active" : ""}" id="tab-stats">
@@ -306,6 +322,222 @@ function renderContentHTML(data, meta) {
           <div class="loader"></div>
           <span>RETRIEVING BROADCAST REELS & HIGHLIGHTS…</span>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRosterColumn(rosterObj, fallbackName, fallbackLogo) {
+  const team = rosterObj?.team || {};
+  const teamName = team.displayName || team.name || fallbackName || "Club";
+  const teamLogo = team.logo || team.logos?.[0]?.href || fallbackLogo || "";
+  const formation = rosterObj?.formation ? `Setup: ${rosterObj.formation}` : "Tactical Setup";
+  const rawRoster = rosterObj?.roster || [];
+
+  const starters = rawRoster.filter((p) => p.starter);
+  const bench = rawRoster.filter((p) => !p.starter);
+
+  function renderPlayerItem(p) {
+    const name = p.athlete?.displayName || p.athlete?.shortName || p.athlete?.name || "Player";
+    const jersey = p.jersey ? `#${p.jersey}` : "•";
+    const pos = p.position?.abbreviation || p.position?.displayName || "";
+    const isSubbedOut = p.subbedOut;
+    const isSubbedIn = p.subbedIn;
+
+    let subTag = "";
+    if (isSubbedOut) subTag = `<span class="player-sub-badge out" title="Substituted Off">▼</span>`;
+    if (isSubbedIn) subTag = `<span class="player-sub-badge in" title="Substituted On">▲</span>`;
+
+    return `
+      <div class="lineup-player-row">
+        <span class="player-jersey-pill">${escapeHTML(jersey)}</span>
+        <span class="player-lineup-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
+        ${subTag}
+        ${pos ? `<span class="player-pos-tag">${escapeHTML(pos)}</span>` : ""}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="lineup-team-col">
+      <div class="lineup-team-header">
+        ${teamLogo ? `<img class="lineup-team-crest" src="${escapeHTML(teamLogo)}" alt="${escapeHTML(teamName)}">` : `<div class="team-logo-placeholder">⚽</div>`}
+        <div class="lineup-team-meta">
+          <h4 class="lineup-team-name">${escapeHTML(teamName)}</h4>
+          <span class="lineup-formation-badge">${escapeHTML(formation)}</span>
+        </div>
+      </div>
+
+      <div class="lineup-group">
+        <div class="lineup-group-header">
+          <span class="lineup-group-title">STARTING XI</span>
+          <span class="lineup-count-pill">${starters.length}</span>
+        </div>
+        <div class="lineup-players-list">
+          ${starters.length > 0 ? starters.map(renderPlayerItem).join("") : '<div class="lineup-pending-note">Starters not yet announced</div>'}
+        </div>
+      </div>
+
+      ${bench.length > 0 ? `
+        <div class="lineup-group bench-group">
+          <div class="lineup-group-header">
+            <span class="lineup-group-title">SUBSTITUTES</span>
+            <span class="lineup-count-pill">${bench.length}</span>
+          </div>
+          <div class="lineup-players-list bench-list">
+            ${bench.map(renderPlayerItem).join("")}
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderLineupsHTML(data, meta) {
+  const rosters = data?.rosters || [];
+  const homeRoster = rosters.find((r) => r.homeAway === "home") || rosters[0];
+  const awayRoster = rosters.find((r) => r.homeAway === "away") || rosters[1];
+
+  const hasStarters = (homeRoster?.roster?.some((p) => p.starter)) || (awayRoster?.roster?.some((p) => p.starter));
+
+  if (!hasStarters) {
+    return `
+      <div class="lineup-pending-card">
+        <div class="lineup-pending-icon">📋</div>
+        <h3 class="lineup-pending-title">Official Starting Lineups Pending</h3>
+        <p class="lineup-pending-desc">
+          Official starting XIs, tactical formations, and substitutes are typically confirmed and announced by both clubs approximately <strong>60 to 75 minutes</strong> before scheduled kickoff.
+        </p>
+        <div class="lineup-pending-meta">
+          <span class="pending-chip">⏱️ Kickoff: ${escapeHTML(meta.kickoff || "Scheduled")}</span>
+          ${meta.venue ? `<span class="pending-chip">🏟️ ${escapeHTML(meta.venue)}</span>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="lineups-dual-container">
+      ${renderRosterColumn(homeRoster, meta.homeName, meta.homeLogo)}
+      ${renderRosterColumn(awayRoster, meta.awayName, meta.awayLogo)}
+    </div>
+  `;
+}
+
+function renderH2HAndFormHTML(data, meta) {
+  const lastFiveGames = data?.lastFiveGames || [];
+  const seasonseries = data?.seasonseries || [];
+
+  const homeFive = lastFiveGames.find((g) => g.team?.displayName === meta.homeName || g.team?.name === meta.homeName) || lastFiveGames[0] || {};
+  const awayFive = lastFiveGames.find((g) => g.team?.displayName === meta.awayName || g.team?.name === meta.awayName) || lastFiveGames[1] || {};
+
+  function renderFormPills(fiveObj, fallbackName, fallbackLogo) {
+    const teamName = fiveObj.team?.displayName || fiveObj.team?.name || fallbackName;
+    const teamLogo = fiveObj.team?.logo || fiveObj.team?.logos?.[0]?.href || fallbackLogo;
+    const events = fiveObj.events || [];
+
+    if (!events.length) {
+      return `
+        <div class="form-team-card">
+          <div class="form-team-header">
+            ${teamLogo ? `<img class="form-team-crest" src="${escapeHTML(teamLogo)}" alt="${escapeHTML(teamName)}">` : `<div class="team-logo-placeholder">⚽</div>`}
+            <span class="form-team-title">${escapeHTML(teamName)}</span>
+          </div>
+          <span class="form-empty-note">Recent match form not recorded</span>
+        </div>
+      `;
+    }
+
+    const pills = events.map((ev) => {
+      const res = (ev.gameResult || ev.result || "-").toUpperCase();
+      const opp = ev.opponent?.displayName || ev.opponent?.shortDisplayName || "Opponent";
+      const score = ev.score || "";
+      const cls = res === "W" ? "win" : (res === "D" ? "draw" : (res === "L" ? "loss" : "unknown"));
+      const title = `${res} vs ${opp}${score ? ` (${score})` : ""}`;
+      return `
+        <div class="form-pill-wrap" title="${escapeHTML(title)}">
+          <span class="form-pill ${cls}">${escapeHTML(res)}</span>
+          <span class="form-opp-sub">${escapeHTML(score || opp.slice(0, 3))}</span>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="form-team-card">
+        <div class="form-team-header">
+          ${teamLogo ? `<img class="form-team-crest" src="${escapeHTML(teamLogo)}" alt="${escapeHTML(teamName)}">` : `<div class="team-logo-placeholder">⚽</div>`}
+          <div class="form-team-title-wrap">
+            <span class="form-team-title">${escapeHTML(teamName)}</span>
+            <span class="form-subtitle">LAST 5 MATCHES</span>
+          </div>
+        </div>
+        <div class="form-pills-row">
+          ${pills}
+        </div>
+      </div>
+    `;
+  }
+
+  const series = seasonseries[0] || {};
+  const seriesEvents = series.events || [];
+  const seriesSummary = series.summary || series.seriesScore || "";
+
+  let h2hMatchesHTML = "";
+  if (seriesEvents.length > 0) {
+    h2hMatchesHTML = seriesEvents.map((ev) => {
+      const comps = ev.competitors || [];
+      const hComp = comps.find((c) => c.homeAway === "home") || comps[0] || {};
+      const aComp = comps.find((c) => c.homeAway === "away") || comps[1] || {};
+      const hTeam = hComp.team?.displayName || "Home";
+      const aTeam = aComp.team?.displayName || "Away";
+      const hScore = hComp.score ?? "-";
+      const aScore = aComp.score ?? "-";
+      const date = formatKickoff(ev.date);
+      const compName = ev.competitionName || "Matchup";
+
+      const hWon = hComp.winner === true;
+      const aWon = aComp.winner === true;
+
+      return `
+        <div class="h2h-match-row">
+          <div class="h2h-match-meta">
+            <span class="h2h-comp">${escapeHTML(compName)}</span>
+            <span class="h2h-date">${escapeHTML(date)}</span>
+          </div>
+          <div class="h2h-score-line">
+            <span class="h2h-team ${hWon ? "winner" : ""}">${escapeHTML(hTeam)}</span>
+            <span class="h2h-score-digits">${escapeHTML(String(hScore))} : ${escapeHTML(String(aScore))}</span>
+            <span class="h2h-team ${aWon ? "winner" : ""}">${escapeHTML(aTeam)}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  return `
+    <div class="h2h-wrap">
+      <div class="form-guide-section">
+        <h4 class="match-detail-section-title">RECENT FORM GUIDE</h4>
+        <div class="form-teams-grid">
+          ${renderFormPills(homeFive, meta.homeName, meta.homeLogo)}
+          ${renderFormPills(awayFive, meta.awayName, meta.awayLogo)}
+        </div>
+      </div>
+
+      <div class="h2h-series-section">
+        <div class="h2h-section-header">
+          <h4 class="match-detail-section-title">HEAD-TO-HEAD HISTORY</h4>
+          ${seriesSummary ? `<span class="h2h-series-pill">⚔️ ${escapeHTML(seriesSummary)}</span>` : ""}
+        </div>
+        ${h2hMatchesHTML ? `
+          <div class="h2h-matches-list">
+            ${h2hMatchesHTML}
+          </div>
+        ` : `
+          <div class="summary-empty">
+            <p>No previous head-to-head records found for these clubs.</p>
+          </div>
+        `}
       </div>
     </div>
   `;
@@ -370,9 +602,13 @@ export async function init(container, navigate) {
   };
 
   // Pre-load highlights promise immediately for snappy switching
-  const query = `${resolvedMatchName} highlights`;
+  const cleanMatchName = (homeName && awayName && homeName !== "Home" && awayName !== "Away")
+    ? `${homeName} vs ${awayName}`
+    : normalizeMatchQuery(resolvedMatchName);
+  const query = `${cleanMatchName} highlights`;
   const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-  const highlightsPromise = getHighlights(query).catch((err) => {
+  const isRecent = state === "in" || state === "post" || !state;
+  const highlightsPromise = getHighlights(cleanMatchName, { isRecent }).catch((err) => {
     console.warn("Highlights fetch error in match center:", err);
     return [];
   });
@@ -409,7 +645,7 @@ export async function init(container, navigate) {
   const highlightsWrap = bodyEl.querySelector("#matchDetailHighlightsWrap");
   highlightsPromise.then((highlights) => {
     if (highlightsWrap) {
-      highlightsWrap.innerHTML = renderHighlightsHTML(highlights, resolvedMatchName, ytSearchUrl);
+      highlightsWrap.innerHTML = renderHighlightsHTML(highlights, cleanMatchName, ytSearchUrl);
     }
   });
 }

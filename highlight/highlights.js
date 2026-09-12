@@ -7,10 +7,44 @@
 import { Storage } from "../storage.js";
 import { escapeHTML } from "../utils.js";
 
-const CACHE_PREFIX = "yt-highlights:v5:";
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_PREFIX = "yt-highlights:v6:";
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours for archive matches
+const RECENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes for active / today matches
 const MAX_OPTIONS  = 4;
 const TIMEOUT_MS   = 6000;
+
+/**
+ * Clean and normalize match titles so YouTube gets the best search relevance.
+ * e.g. "Brentford at AFC Bournemouth" -> "AFC Bournemouth vs Brentford"
+ */
+export function normalizeMatchQuery(name) {
+  if (!name) return "";
+  let clean = name.trim();
+  if (clean.includes(" at ")) {
+    const parts = clean.split(" at ");
+    if (parts.length === 2) {
+      clean = `${parts[1].trim()} vs ${parts[0].trim()}`;
+    }
+  }
+  return clean.replace(/\s+v\s+/i, " vs ");
+}
+
+/**
+ * Parse YouTube relative time string into hours for sorting fresh highlights first.
+ * e.g. "55 minutes ago" -> 0.91, "1 hour ago" -> 1, "6 months ago" -> 4320
+ */
+function parseUploadedAgeHours(str) {
+  if (!str) return 999999;
+  const s = str.toLowerCase();
+  if (s.includes("second")) return 0.01;
+  if (s.includes("min")) return (parseInt(s, 10) || 1) / 60;
+  if (s.includes("hour") || s.includes("h ago")) return parseInt(s, 10) || 1;
+  if (s.includes("day") || s.includes("d ago")) return (parseInt(s, 10) || 1) * 24;
+  if (s.includes("week") || s.includes("w ago")) return (parseInt(s, 10) || 1) * 24 * 7;
+  if (s.includes("month") || s.includes("mo ago")) return (parseInt(s, 10) || 1) * 24 * 30;
+  if (s.includes("year") || s.includes("y ago")) return (parseInt(s, 10) || 1) * 24 * 365;
+  return 999999;
+}
 
 // ---------------------------------------------------------------------------
 // Cache helpers
@@ -30,9 +64,9 @@ async function readCache(key) {
   }
 }
 
-async function writeCache(key, data) {
+async function writeCache(key, data, ttlMs = CACHE_TTL_MS) {
   try {
-    await Storage.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+    await Storage.set(key, { data, expiresAt: Date.now() + ttlMs });
   } catch (_e) {}
 }
 
@@ -58,8 +92,9 @@ async function fetchWithTimeout(url, timeoutMs = TIMEOUT_MS) {
   }
 }
 
-async function searchYouTube(query) {
-  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+async function searchYouTube(query, { sp = "" } = {}) {
+  const spParam = sp ? `&sp=${sp}` : "";
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}${spParam}`;
   const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`YouTube responded with status ${res.status}`);
 
@@ -91,6 +126,12 @@ async function searchYouTube(query) {
         ? thumbs[thumbs.length - 1].url
         : `https://i.ytimg.com/vi/${vr.videoId}/hqdefault.jpg`;
 
+      // Filter out video game simulations (PES, eFootball, etc.)
+      const lower = title.toLowerCase();
+      if (lower.includes("simulation") || lower.includes("pes ") || lower.includes("efootball") || lower.includes("gameplay")) {
+        continue;
+      }
+
       videos.push({
         id: vr.videoId,
         title,
@@ -101,23 +142,71 @@ async function searchYouTube(query) {
         thumbnail,
       });
 
-      if (videos.length >= MAX_OPTIONS) break;
+      if (videos.length >= 10) break;
     }
-    if (videos.length >= MAX_OPTIONS) break;
+    if (videos.length >= 10) break;
   }
 
   return videos;
 }
 
-export async function getHighlights(query) {
-  const cacheKey = CACHE_PREFIX + query;
-  const cached   = await readCache(cacheKey);
+export async function getHighlights(query, options = {}) {
+  const isRecent = options.isRecent ?? true;
+  const cleanTitle = normalizeMatchQuery(query);
+  const baseQuery = cleanTitle.toLowerCase().includes("highlight") ? cleanTitle : `${cleanTitle} highlights`;
+  const cacheKey = `${CACHE_PREFIX}${isRecent ? "recent:" : "std:"}${baseQuery}`;
+
+  const cached = await readCache(cacheKey);
   if (cached?.length) return cached;
 
   try {
-    const results = await searchYouTube(query);
+    let videos = [];
+
+    if (isRecent) {
+      // 1. Stage 1: Try Today / Last 24 Hours filter
+      try {
+        const todayVids = await searchYouTube(baseQuery, { sp: "EgIIAg%253D%253D" });
+        if (todayVids.length >= 2) {
+          videos = todayVids;
+        }
+      } catch (_err) {}
+
+      // 2. Stage 2: Try This Week filter
+      if (videos.length < 2) {
+        try {
+          const weekVids = await searchYouTube(baseQuery, { sp: "EgIIAw%253D%253D" });
+          videos = [...videos, ...weekVids];
+        } catch (_err) {}
+      }
+    }
+
+    // 3. Stage 3: Fallback to standard relevance search
+    if (videos.length < 2) {
+      try {
+        const standardVids = await searchYouTube(baseQuery);
+        videos = [...videos, ...standardVids];
+      } catch (_err) {}
+    }
+
+    // Deduplicate by videoId
+    const seen = new Set();
+    const unique = [];
+    for (const v of videos) {
+      if (!seen.has(v.id)) {
+        seen.add(v.id);
+        unique.push(v);
+      }
+    }
+
+    if (isRecent) {
+      // Prioritize videos uploaded minutes/hours ago over old historical archives
+      unique.sort((a, b) => parseUploadedAgeHours(a.uploaded) - parseUploadedAgeHours(b.uploaded));
+    }
+
+    const results = unique.slice(0, MAX_OPTIONS);
     if (results.length) {
-      await writeCache(cacheKey, results);
+      const ttl = isRecent ? RECENT_CACHE_TTL_MS : CACHE_TTL_MS;
+      await writeCache(cacheKey, results, ttl);
       return results;
     }
   } catch (err) {
@@ -226,12 +315,14 @@ export function renderHighlightsHTML(highlights, matchName, ytSearchUrl) {
 export async function init(container, navigate) {
   const matchName = await Storage.get("match-name");
 
+  const cleanName = normalizeMatchQuery(matchName);
+
   container.innerHTML = `
     <div class="highlight-header">
       <button class="back-btn" id="highlightBackBtn">
         <span class="back-arrow">‹</span> MATCHES
       </button>
-      <h2 id="highlight-match-title" class="highlight-match-title">${escapeHTML(matchName || "Match Highlights")}</h2>
+      <h2 id="highlight-match-title" class="highlight-match-title">${escapeHTML(cleanName || "Match Highlights")}</h2>
     </div>
     <div id="highlights-container">
       <div class="info-msg">
@@ -245,20 +336,20 @@ export async function init(container, navigate) {
 
   const highlightsContainer = container.querySelector("#highlights-container");
 
-  if (!matchName) {
+  if (!cleanName) {
     highlightsContainer.innerHTML = `<div class="info-msg">No match selected. Return to fixtures and pick a match.</div>`;
     return;
   }
 
-  const query       = `${matchName} highlights`;
+  const query       = `${cleanName} highlights`;
   const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 
   try {
-    const highlights = await getHighlights(query);
-    highlightsContainer.innerHTML = renderHighlightsHTML(highlights, matchName, ytSearchUrl);
+    const highlights = await getHighlights(query, { isRecent: true });
+    highlightsContainer.innerHTML = renderHighlightsHTML(highlights, cleanName, ytSearchUrl);
   } catch (err) {
     console.error("Error fetching highlights:", err);
-    highlightsContainer.innerHTML = renderHighlightsHTML([], matchName, ytSearchUrl);
+    highlightsContainer.innerHTML = renderHighlightsHTML([], cleanName, ytSearchUrl);
   }
 }
 

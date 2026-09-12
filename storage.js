@@ -47,4 +47,49 @@ export const Storage = {
       localStorage.removeItem(key);
     } catch (_e) {}
   },
+
+  /**
+   * Scan storage and purge all items that have an expiresAt timestamp in the past.
+   * @returns {Promise<number>} Count of purged entries.
+   */
+  async pruneExpired() {
+    const now = Date.now();
+    if (typeof chrome !== "undefined" && chrome?.storage?.local) {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(null, (all) => {
+          const expiredKeys = [];
+          for (const [k, v] of Object.entries(all || {})) {
+            if (v && typeof v === "object" && v.expiresAt && v.expiresAt < now) {
+              expiredKeys.push(k);
+            }
+          }
+          if (expiredKeys.length > 0) {
+            chrome.storage.local.remove(expiredKeys, () => {
+              console.debug(`[Storage] Pruned ${expiredKeys.length} expired cache entries.`);
+              resolve(expiredKeys.length);
+            });
+          } else {
+            resolve(0);
+          }
+        });
+      });
+    }
+    try {
+      const expired = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        try {
+          const val = JSON.parse(localStorage.getItem(k));
+          if (val && typeof val === "object" && val.expiresAt && val.expiresAt < now) {
+            expired.push(k);
+          }
+        } catch (_e) {}
+      }
+      expired.forEach((k) => localStorage.removeItem(k));
+      return expired.length;
+    } catch (_e) {
+      return 0;
+    }
+  },
 };

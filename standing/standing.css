@@ -3,6 +3,8 @@
    Matchday Edition / Editorial League Table
    ================================================ */
 
+@import url("../common.css");
+
 .standings-wrap {
   display: flex;
   flex-direction: column;

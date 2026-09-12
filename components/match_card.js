@@ -1,9 +1,85 @@
-/**
- * components/match_card.js - Shared Match Card UI Component
- * Used across Matches view and Club Fixtures.
- */
+import { escapeHTML, ensureHttps, formatKickoff } from "../utils.js";
 
-import { escapeHTML } from "../utils.js";
+/**
+ * Format a season slug into a readable competition title.
+ * e.g. "2026-27-english-premier-league" -> "ENGLISH PREMIER LEAGUE"
+ */
+export function formatCompetitionTitle(seasonSlug, defaultTitle = "SOCCER") {
+  if (!seasonSlug) return defaultTitle;
+  return seasonSlug
+    .replace(/^\d{4}-\d{2}-/, "")
+    .replace(/-/g, " ")
+    .toUpperCase();
+}
+
+/**
+ * Normalize any ESPN match event (from scoreboard, schedule, or core API)
+ * into a standardized, bulletproof MatchCardData object.
+ * @param {object} event Raw ESPN event object
+ * @param {object} options Extra options e.g. { competitionTitle }
+ * @returns {object|null} Standardized match data object or null if invalid
+ */
+export function normalizeEspnEvent(event, options = {}) {
+  if (!event) return null;
+  const comp = event.competitions?.[0] || event;
+  const competitors = comp.competitors || [];
+  if (competitors.length < 2) return null;
+
+  const homeComp = competitors.find((c) => c.homeAway === "home") || competitors[0] || {};
+  const awayComp = competitors.find((c) => c.homeAway === "away") || competitors[1] || {};
+
+  const homeTeam = homeComp.team || {};
+  const awayTeam = awayComp.team || {};
+
+  const statusType = comp.status?.type || {};
+  const state = statusType.state || "pre";
+  const isLive = state === "in";
+  const isPost = state === "post";
+
+  let label = "FIXTURE";
+  if (isLive) {
+    const clock = comp.status?.displayClock || statusType.shortDetail || "";
+    label = clock ? `● ${clock}` : "● LIVE";
+  } else if (isPost) {
+    label = statusType.shortDetail || statusType.detail || "FT";
+  }
+
+  const dateStr = comp.date || event.date;
+  const kickoff = formatKickoff(dateStr);
+
+  const homeName = homeTeam.displayName || homeTeam.name || "Home";
+  const awayName = awayTeam.displayName || awayTeam.name || "Away";
+
+  const homeLogo = ensureHttps(homeTeam.logo || homeTeam.logos?.[0]?.href || "");
+  const awayLogo = ensureHttps(awayTeam.logo || awayTeam.logos?.[0]?.href || "");
+
+  const homeScore = homeComp.score?.value ?? homeComp.score ?? "0";
+  const awayScore = awayComp.score?.value ?? awayComp.score ?? "0";
+
+  const compTitle = options.competitionTitle || formatCompetitionTitle(event.season?.slug, comp.league?.name || "");
+
+  return {
+    eventId: String(event.id || comp.id || ""),
+    matchName: event.name || `${homeName} vs ${awayName}`,
+    kickoff,
+    state,
+    label,
+    detail: statusType.description || (isLive ? "In Play" : (isPost ? "Final" : "")),
+    competitionTitle: compTitle,
+    homeName,
+    homeSlug: homeTeam.slug || "",
+    homeId: String(homeTeam.id || ""),
+    homeLogo,
+    homeScore,
+    awayName,
+    awaySlug: awayTeam.slug || "",
+    awayId: String(awayTeam.id || ""),
+    awayLogo,
+    awayScore,
+    showScore: isLive || isPost,
+    venueName: comp.venue?.fullName || comp.venue?.shortName || "",
+  };
+}
 
 /**
  * Render a standardized Matchday scoreboard match card.

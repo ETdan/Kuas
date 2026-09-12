@@ -1,6 +1,8 @@
 // background.js - Kuas Service Worker
 // Monitors active matches and displays a red "LIVE" badge on the extension icon.
 
+import { Storage } from "./storage.js";
+
 const ALARM_NAME = "kuas_live_match_checker";
 const CHECK_INTERVAL_MINUTES = 5;
 
@@ -58,11 +60,13 @@ chrome.runtime.onInstalled.addListener(() => {
   });
   checkLiveMatches();
   syncPopupDestination();
+  Storage.pruneExpired().catch(() => {});
 });
 
 chrome.runtime.onStartup.addListener(() => {
   checkLiveMatches();
   syncPopupDestination();
+  Storage.pruneExpired().catch(() => {});
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {

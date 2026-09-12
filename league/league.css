@@ -3,6 +3,8 @@
    Matchday Edition / Football Art Theme
    ============================================================ */
 
+@import url("../common.css");
+
 :root {
   --art-red: #D8232A;
   --art-red-dark: #B3171D;

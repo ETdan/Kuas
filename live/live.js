@@ -5,19 +5,11 @@
  */
 
 import { Storage } from "../storage.js";
-import { escapeHTML, ensureHttps, formatKickoff } from "../utils.js";
+import { escapeHTML, renderErrorState } from "../utils.js";
 import { getLiveScoreboard } from "../api.js";
-import { renderMatchCardHTML } from "../components/match_card.js";
+import { renderMatchCardHTML, normalizeEspnEvent } from "../components/match_card.js";
 
 const REFRESH_INTERVAL_MS = 30000; // 30 seconds auto-refresh
-
-function formatCompetitionTitle(seasonSlug, defaultTitle = "SOCCER") {
-  if (!seasonSlug) return defaultTitle;
-  return seasonSlug
-    .replace(/^\d{4}-\d{2}-/, "")
-    .replace(/-/g, " ")
-    .toUpperCase();
-}
 
 function renderShellHTML(leagueName) {
   return `
@@ -58,46 +50,6 @@ function renderShellHTML(leagueName) {
   `;
 }
 
-function mapEventToCardData(event) {
-  const comp = event?.competitions?.[0];
-  if (!comp || !comp.competitors || comp.competitors.length < 2) return null;
-
-  const homeComp = comp.competitors.find((c) => c.homeAway === "home") || comp.competitors[0];
-  const awayComp = comp.competitors.find((c) => c.homeAway === "away") || comp.competitors[1];
-
-  const homeTeam = homeComp.team || {};
-  const awayTeam = awayComp.team || {};
-
-  const statusType = comp.status?.type || {};
-  const isLive = statusType.state === "in";
-  const clock = comp.status?.displayClock || statusType.shortDetail || "";
-  const liveLabel = clock ? `● ${clock}` : "● LIVE";
-
-  const competitionTitle = formatCompetitionTitle(event.season?.slug, comp.league?.name);
-
-  return {
-    eventId: String(event.id || comp.id || ""),
-    matchName: event.name || `${homeTeam.displayName || "Home"} vs ${awayTeam.displayName || "Away"}`,
-    kickoff: formatKickoff(comp.date || event.date),
-    state: statusType.state || "in",
-    label: liveLabel,
-    detail: statusType.description || "In Play",
-    competitionTitle,
-    homeName: homeTeam.displayName || "Home",
-    homeSlug: homeTeam.slug || "",
-    homeId: homeTeam.id || "",
-    homeLogo: ensureHttps(homeTeam.logo || homeTeam.logos?.[0]?.href || ""),
-    homeScore: homeComp.score ?? "0",
-    awayName: awayTeam.displayName || "Away",
-    awaySlug: awayTeam.slug || "",
-    awayId: awayTeam.id || "",
-    awayLogo: ensureHttps(awayTeam.logo || awayTeam.logos?.[0]?.href || ""),
-    awayScore: awayComp.score ?? "0",
-    showScore: true,
-    venueName: comp.venue?.fullName || "",
-  };
-}
-
 export async function init(container, navigate) {
   const slug = await Storage.get("leagueSlug") || "eng.1";
 
@@ -133,7 +85,7 @@ export async function init(container, navigate) {
       if (allCountEl) allCountEl.textContent = String(allLiveEvents.length);
 
       const activeList = currentScope === "league" ? leagueLiveEvents : allLiveEvents;
-      const mappedCards = activeList.map(mapEventToCardData).filter(Boolean);
+      const mappedCards = activeList.map((e) => normalizeEspnEvent(e)).filter(Boolean);
 
       if (!mappedCards.length) {
         if (currentScope === "league") {
@@ -183,11 +135,11 @@ export async function init(container, navigate) {
       }).join("");
     } catch (err) {
       console.error("Error loading live match feed:", err);
-      containerEl.innerHTML = `
-        <div class="info-msg">
-          <p class="error-msg">Live scoreboard feed currently unavailable. Please click refresh to retry.</p>
-        </div>
-      `;
+      renderErrorState(
+        containerEl,
+        "Live scoreboard feed currently unavailable. Please click below to retry.",
+        () => loadLiveFeed(true)
+      );
     } finally {
       if (refreshBtn) {
         setTimeout(() => refreshBtn.classList.remove("refreshing"), 400);

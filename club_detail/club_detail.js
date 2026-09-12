@@ -5,9 +5,9 @@
  */
 
 import { Storage } from "../storage.js";
-import { escapeHTML, ensureHttps, formatKickoff } from "../utils.js";
+import { escapeHTML, ensureHttps, formatKickoff, renderErrorState } from "../utils.js";
 import { getTeamSchedule, getTeamRoster, getTeamInfo } from "../api.js";
-import { renderMatchCardHTML } from "../components/match_card.js";
+import { renderMatchCardHTML, normalizeEspnEvent } from "../components/match_card.js";
 
 const PORTRAIT_CACHE_PREFIX = "player-cutout:v2:";
 const PORTRAIT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -309,36 +309,7 @@ export async function init(container, navigate) {
         return;
       }
 
-      const matchDatas = data.events.map((match) => {
-        const comp = match?.competitions?.[0];
-        if (!comp?.competitors || comp.competitors.length < 2) return null;
-        const homeComp = comp.competitors.find((c) => c.homeAway === "home") || comp.competitors[0];
-        const awayComp = comp.competitors.find((c) => c.homeAway === "away") || comp.competitors[1];
-        const homeTeam = homeComp.team;
-        const awayTeam = awayComp.team;
-        const statusType = comp.status?.type || {};
-        const state = statusType.state || "pre";
-        const showScore = state === "in" || state === "post";
-
-        return {
-          eventId:   match.id || comp.id || "",
-          matchName: `${homeTeam?.displayName || "Home"} vs ${awayTeam?.displayName || "Away"}`,
-          state,
-          showScore,
-          label:     state === "in" ? (statusType.detail || "LIVE") : (state === "post" ? (statusType.shortDetail || "FT") : "FIXTURE"),
-          detail:    statusType.shortDetail || statusType.detail || "",
-          kickoff:   formatKickoff(comp.date),
-          venueName: comp.venue?.fullName ?? "",
-          homeId:    homeTeam?.id ?? "",
-          homeName:  homeTeam?.displayName ?? "Home",
-          homeLogo:  ensureHttps(homeTeam?.logos?.[0]?.href ?? ""),
-          homeScore: homeComp.score?.value ?? homeComp.score ?? "0",
-          awayId:    awayTeam?.id ?? "",
-          awayName:  awayTeam?.displayName ?? "Away",
-          awayLogo:  ensureHttps(awayTeam?.logos?.[0]?.href ?? ""),
-          awayScore: awayComp.score?.value ?? awayComp.score ?? "0",
-        };
-      }).filter(Boolean);
+      const matchDatas = data.events.map((match) => normalizeEspnEvent(match)).filter(Boolean);
 
       if (!matchDatas.length) {
         clubContent.innerHTML = `<div class="info-msg">No fixture details available.</div>`;
@@ -352,7 +323,7 @@ export async function init(container, navigate) {
       `;
     } catch (err) {
       console.error("Error loading fixtures:", err);
-      clubContent.innerHTML = `<div class="error-msg">Failed to load club fixtures.</div>`;
+      renderErrorState(clubContent, "Failed to load club fixtures. Please try again.", () => loadMatches());
     }
   }
 

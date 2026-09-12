@@ -44,3 +44,39 @@ export function toInputValue(date) {
 export function toApiDate(dateStr) {
   return dateStr ? dateStr.replace(/-/g, "") : "";
 }
+
+/**
+ * Render a standardized error state card with optional retry button and offline detection.
+ * @param {HTMLElement|string} container Target DOM element
+ * @param {string} message Error message
+ * @param {Function|null} onRetry Retry callback
+ */
+export function renderErrorState(container, message = "Unable to load data at this time.", onRetry = null) {
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  const displayMsg = isOffline
+    ? "You appear to be offline. Please check your internet connection."
+    : message;
+
+  const html = `
+    <div class="error-card">
+      <div class="error-card-icon">${isOffline ? "📡" : "⚠️"}</div>
+      <h3 class="error-card-title">${isOffline ? "NO INTERNET CONNECTION" : "TRANSMISSION ISSUE"}</h3>
+      <p class="error-card-desc">${escapeHTML(displayMsg)}</p>
+      ${onRetry ? `
+        <button class="retry-action-btn" id="errRetryBtn">
+          <span>🔄</span> RETRY
+        </button>
+      ` : ""}
+    </div>
+  `;
+
+  if (typeof container === "string") return html;
+  if (container) {
+    container.innerHTML = html;
+    if (onRetry) {
+      container.querySelector("#errRetryBtn")?.addEventListener("click", () => onRetry());
+    }
+  }
+  return html;
+}
+
