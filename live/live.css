@@ -1,0 +1,256 @@
+/* ============================================================
+   live.css — Live Matchday Desk View Styles
+   Matchday Edition / Real-Time Broadcast Dashboard Theme
+   ============================================================ */
+
+@import url("../matches/matches.css");
+
+.live-view-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header bar */
+.live-header-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--art-surface);
+  border: 1px solid var(--art-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.live-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.live-title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.live-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--art-red);
+  box-shadow: 0 0 10px var(--art-red-glow);
+  animation: livePulseAnim 1.4s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes livePulseAnim {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.65;
+  }
+}
+
+.live-title-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.live-kicker {
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--art-red);
+  text-transform: uppercase;
+}
+
+.live-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  color: var(--art-cream);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Refresh Button */
+.live-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--art-border);
+  border-radius: 6px;
+  color: var(--art-cream);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.live-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--art-yellow);
+  color: var(--art-yellow);
+}
+
+.live-refresh-btn.refreshing .refresh-icon {
+  animation: spinRefresh 0.6s linear infinite;
+}
+
+@keyframes spinRefresh {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Scope Chips */
+.live-scope-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-chip {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(10, 15, 29, 0.7);
+  border: 1.5px solid var(--art-border);
+  border-radius: 7px;
+  color: var(--art-cream-muted);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.live-chip .chip-dot {
+  color: var(--art-red);
+  font-size: 0.75rem;
+}
+
+.live-chip:hover {
+  background: var(--art-surface-hover);
+  color: var(--art-cream);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.live-chip.active {
+  background: rgba(216, 35, 42, 0.15);
+  color: var(--art-cream);
+  border-color: var(--art-red);
+  box-shadow: 0 2px 8px var(--art-red-glow);
+}
+
+/* Matches List Container */
+.live-matches-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.live-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.live-card-league-tag {
+  align-self: flex-start;
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--art-yellow);
+  background: rgba(255, 209, 0, 0.1);
+  border: 1px solid rgba(255, 209, 0, 0.25);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Empty State Card */
+.live-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 30px 20px;
+  background: var(--art-surface);
+  border: 1.5px solid var(--art-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  margin-top: 6px;
+}
+
+.live-empty-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.live-empty-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  color: var(--art-cream);
+}
+
+.live-empty-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--art-cream-muted);
+  line-height: 1.45;
+  max-width: 400px;
+}
+
+.live-empty-desc strong {
+  color: var(--art-yellow);
+}
+
+.live-switch-scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 16px;
+  background: var(--art-red);
+  color: var(--art-cream);
+  border: none;
+  border-radius: 7px;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 0 2px 10px var(--art-red-glow);
+  transition: all 0.15s ease;
+}
+
+.live-switch-scope-btn:hover {
+  background: #E8333A;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--art-red-glow);
+}

@@ -7,78 +7,9 @@ import { Storage } from "../storage.js";
 import { escapeHTML, ensureHttps, formatKickoff, toInputValue, toApiDate } from "../utils.js";
 import { getEvents, getMatchRef, getTeamRef, getStatusRef, getScoreRef } from "../api.js";
 
+import { renderMatchCardHTML } from "../components/match_card.js";
+
 const STORAGE_KEYS = { from: "matchesFromDate", to: "matchesToDate" };
-
-// ---------------------------------------------------------------------------
-// HTML templates
-// ---------------------------------------------------------------------------
-
-function renderMatchCardHTML(d) {
-  const homeLogo = d.homeLogo
-    ? `<img class="team-logo" src="${escapeHTML(d.homeLogo)}" alt="${escapeHTML(d.homeName)}" loading="lazy">`
-    : `<div class="team-logo-placeholder">⚽</div>`;
-  const awayLogo = d.awayLogo
-    ? `<img class="team-logo" src="${escapeHTML(d.awayLogo)}" alt="${escapeHTML(d.awayName)}" loading="lazy">`
-    : `<div class="team-logo-placeholder">⚽</div>`;
-
-  const highlightsBadge = d.state === "post"
-    ? `<span class="highlights-cue">HIGHLIGHTS ↗</span>`
-    : "";
-
-  return `
-    <div class="match-card" data-action="open-highlights" data-match-name="${escapeHTML(d.matchName)}" role="button" tabindex="0">
-      <div class="match-top">
-        <div class="match-kickoff">
-          <span class="clock-icon">⏱</span>
-          <span>${escapeHTML(d.kickoff)}</span>
-        </div>
-        <div class="match-status status-${d.state}" title="${escapeHTML(d.detail)}">
-          <span class="status-pill">${escapeHTML(d.label)}</span>
-          <span class="status-detail">${escapeHTML(d.detail)}</span>
-        </div>
-      </div>
-
-      <div class="match-teams">
-        <div class="match-team home-team">
-          <div class="team-logo-wrap">${homeLogo}</div>
-          <div class="team-info">
-            <span class="team-name" data-action="open-club"
-                  data-club-slug="${escapeHTML(d.homeSlug)}"
-                  data-club-id="${escapeHTML(d.homeId)}"
-                  data-club-name="${escapeHTML(d.homeName)}">${escapeHTML(d.homeName)}</span>
-            <span class="team-side-badge">HOME</span>
-          </div>
-        </div>
-
-        <div class="match-score-board ${d.showScore ? "has-score" : "is-vs"}">
-          ${d.showScore 
-            ? `<span class="score-digit">${escapeHTML(String(d.homeScore))}</span>
-               <span class="score-divider">:</span>
-               <span class="score-digit">${escapeHTML(String(d.awayScore))}</span>`
-            : `<span class="vs-text">VS</span>`}
-        </div>
-
-        <div class="match-team away-team">
-          <div class="team-info team-info-away">
-            <span class="team-name" data-action="open-club"
-                  data-club-slug="${escapeHTML(d.awaySlug)}"
-                  data-club-id="${escapeHTML(d.awayId)}"
-                  data-club-name="${escapeHTML(d.awayName)}">${escapeHTML(d.awayName)}</span>
-            <span class="team-side-badge">AWAY</span>
-          </div>
-          <div class="team-logo-wrap">${awayLogo}</div>
-        </div>
-      </div>
-
-      <div class="match-bottom">
-        <div class="match-venue" title="${escapeHTML(d.venueName)}">
-          ${d.venueName ? `<span class="stadium-icon">🏟</span> ${escapeHTML(d.venueName)}` : ""}
-        </div>
-        ${highlightsBadge}
-      </div>
-    </div>
-  `;
-}
 
 // ---------------------------------------------------------------------------
 // Data helpers
@@ -113,12 +44,14 @@ async function buildMatchData(match) {
     getScoreRef(away.score?.$ref),
   ]);
 
-  const venue    = competition.venue;
-  const kickoff  = formatKickoff(competition.date ?? match.date);
+  const venue     = competition.venue;
+  const kickoff   = formatKickoff(competition.date ?? match.date);
   const venueName = venue?.fullName ?? venue?.shortName ?? "";
-  const meta     = statusMeta(statusJson);
+  const meta      = statusMeta(statusJson);
+  const eventId   = String(match.id || competition.id || "");
 
   return {
+    eventId,
     matchName: match.name || "",
     kickoff,
     state:     meta.state,
@@ -281,7 +214,7 @@ export async function init(container, navigate) {
   // ---- Event delegation ----
 
   matchesContainer.addEventListener("click", async (e) => {
-    // Team name → Clubs view with that team pre-selected
+    // 1. Team name → Clubs view with that team pre-selected
     const clubElem = e.target.closest('[data-action="open-club"]');
     if (clubElem) {
       e.stopPropagation();
@@ -292,11 +225,49 @@ export async function init(container, navigate) {
       return;
     }
 
-    // Match card → Highlights view
-    const matchCard = e.target.closest('[data-action="open-highlights"]');
-    if (matchCard) {
-      await Storage.set("match-name", matchCard.getAttribute("data-match-name"));
-      navigate("highlight");
+    // 2. Highlights button or cue → Match Center with Highlights tab
+    const hlBtn = e.target.closest('[data-action="open-highlights"]');
+    if (hlBtn) {
+      e.stopPropagation();
+      const matchName = hlBtn.getAttribute("data-match-name") || "Match Details";
+      await Storage.set("matchName", matchName);
+      await Storage.set("matchInitialTab", "highlights");
+      navigate("match_detail");
+      return;
+    }
+
+    // 3. Match Card click → Match Center (with timeline, stats & highlights)
+    const card = e.target.closest('.match-card');
+    if (card) {
+      e.stopPropagation();
+      const eventId = card.getAttribute("data-event-id");
+      const matchName = card.getAttribute("data-match-name") || "Match Details";
+      const kickoff = card.getAttribute("data-kickoff") || "";
+      const venue = card.getAttribute("data-venue") || "";
+      const state = card.getAttribute("data-state") || "pre";
+      const homeName = card.getAttribute("data-home-name") || "";
+      const homeLogo = card.getAttribute("data-home-logo") || "";
+      const homeScore = card.getAttribute("data-home-score") || "";
+      const awayName = card.getAttribute("data-away-name") || "";
+      const awayLogo = card.getAttribute("data-away-logo") || "";
+      const awayScore = card.getAttribute("data-away-score") || "";
+
+      await Promise.all([
+        Storage.set("matchEventId", eventId),
+        Storage.set("matchName", matchName),
+        Storage.set("matchKickoff", kickoff),
+        Storage.set("matchVenue", venue),
+        Storage.set("matchState", state),
+        Storage.set("matchHomeName", homeName),
+        Storage.set("matchHomeLogo", homeLogo),
+        Storage.set("matchHomeScore", homeScore),
+        Storage.set("matchAwayName", awayName),
+        Storage.set("matchAwayLogo", awayLogo),
+        Storage.set("matchAwayScore", awayScore),
+        Storage.set("matchInitialTab", "timeline"),
+      ]);
+      navigate("match_detail");
+      return;
     }
   });
 

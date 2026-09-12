@@ -222,6 +222,23 @@ body {
   box-shadow: 0 0 8px var(--art-yellow);
 }
 
+.nav-live-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--art-red);
+  color: var(--art-cream);
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 6px var(--art-red-glow);
+  margin-left: -2px;
+}
+
 /* ============================================================
    MAIN CONTENT AREA
    ============================================================ */
@@ -243,21 +260,26 @@ main {
   padding: 4px 8px 16px 8px; /* Left & right padding prevents card hover clipping */
 }
 
-#content::-webkit-scrollbar {
+#content::-webkit-scrollbar,
+*::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
-#content::-webkit-scrollbar-track {
+#content::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
   background: transparent;
 }
 
-#content::-webkit-scrollbar-thumb {
+#content::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
   background: #2D3A54;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-#content::-webkit-scrollbar-thumb:hover {
+#content::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover {
   background: var(--art-yellow);
 }
 
@@ -356,3 +378,5 @@ main {
   margin: 0;
   font-size: 0.85rem;
 }
+
+

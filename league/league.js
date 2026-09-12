@@ -38,37 +38,61 @@ Storage.get("leagueSlug").then((slug) => {
 
 // Lazy-import each view
 const VIEW_LOADERS = {
-  matches:    () => import("../matches/matches.js"),
-  standing:   () => import("../standing/standing.js"),
-  club:       () => import("../club/club.js"),
-  club_detail:() => import("../club_detail/club_detail.js"),
-  highlight:  () => import("../highlight/highlights.js"),
+  matches:     () => import("../matches/matches.js"),
+  live:        () => import("../live/live.js"),
+  standing:    () => import("../standing/standing.js"),
+  club:        () => import("../club/club.js"),
+  club_detail: () => import("../club_detail/club_detail.js"),
+  highlight:   () => import("../highlight/highlights.js"),
+  match_detail:() => import("../matches/match_detail.js"),
 };
 
 const VIEW_CSS = {
-  matches:    "../matches/matches.css",
-  standing:   "../standing/standing.css",
-  club:       "../club/club.css",
-  club_detail:"../club_detail/club_detail.css",
-  highlight:  "../highlight/highlight.css",
+  matches:     "../matches/matches.css",
+  live:        "../live/live.css",
+  standing:    "../standing/standing.css",
+  club:        "../club/club.css",
+  club_detail: "../club_detail/club_detail.css",
+  highlight:   "../highlight/highlight.css",
+  match_detail:"../matches/matches.css",
 };
 
-// Nav links only exist for the three top-level tabs.
-const NAV_PAGES = new Set(["matches", "standing", "club"]);
+// Nav links exist for top-level tabs.
+const NAV_PAGES = new Set(["matches", "live", "standing", "club"]);
 
 let currentPage = null;
 let cssLink = null;
+const navHistory = [];
 
 const content = document.getElementById("content");
 
-/** Load and activate a view by name. */
-async function navigate(page) {
+/** Load and activate a view by name, with back-navigation history. */
+async function navigate(page, { isBack = false } = {}) {
+  if (page === "back") {
+    const prev = navHistory.pop() || "matches";
+    return navigate(prev, { isBack: true });
+  }
+
   if (!VIEW_LOADERS[page]) {
     console.warn(`[router] Unknown page: "${page}"`);
     return;
   }
   if (page === currentPage) return;
+
+  // Record history if navigating forward to a new view
+  if (!isBack && currentPage) {
+    navHistory.push(currentPage);
+    if (navHistory.length > 20) navHistory.shift();
+  }
+
   currentPage = page;
+
+  // Persist current active view & location
+  Storage.set("lastTab", page);
+  Storage.set("lastLocation", "league");
+  if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
+    chrome.action.setPopup({ popup: "league/league.html" });
+  }
 
   // Update nav active state (only for pages that have nav links)
   document.querySelectorAll(".nav-link").forEach((link) => {
@@ -110,24 +134,54 @@ document.querySelectorAll(".nav-link").forEach((link) => {
 });
 
 // ---------------------------------------------------------------------------
-// Home button — back to popup root
+// Home button — back to popup root (clears lastLocation)
 // ---------------------------------------------------------------------------
-document.getElementById("home")?.addEventListener("click", (e) => {
+document.getElementById("home")?.addEventListener("click", async (e) => {
   e.preventDefault();
+  await Storage.set("lastLocation", "home");
+  if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
+    chrome.action.setPopup({ popup: "index.html" });
+  }
   clearCache();
   window.location.href = "../index.html";
 });
 
 // ---------------------------------------------------------------------------
-// Boot — restore last active tab or default to matches
+// Live badge pill updater for top navigation
 // ---------------------------------------------------------------------------
-Storage.get("lastTab", "matches").then((tab) => {
-  navigate(NAV_PAGES.has(tab) ? tab : "matches");
-});
+async function updateNavLivePill() {
+  try {
+    const pill = document.getElementById("navLivePill");
+    if (!pill) return;
+    const slug = await Storage.get("leagueSlug");
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug || "eng.1"}/scoreboard`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const liveCount = data?.events?.filter((e) => e.status?.type?.state === "in")?.length || 0;
+    if (liveCount > 0) {
+      pill.textContent = String(liveCount);
+      pill.style.display = "inline-flex";
+    } else {
+      pill.style.display = "none";
+    }
+  } catch (_e) {}
+}
+updateNavLivePill();
 
-// Persist active tab on nav clicks
-document.querySelectorAll(".nav-link").forEach((link) => {
-  link.addEventListener("click", () => {
-    Storage.set("lastTab", link.getAttribute("data-page"));
-  });
+// ---------------------------------------------------------------------------
+// Boot — restore last active tab or subpage seamlessly
+// ---------------------------------------------------------------------------
+Storage.get("lastTab", "matches").then(async (tab) => {
+  if (NAV_PAGES.has(tab)) {
+    return navigate(tab);
+  }
+  if (tab === "club_detail") {
+    const teamId = await Storage.get("teamId");
+    return navigate(teamId ? "club_detail" : "club");
+  }
+  if (tab === "match_detail") {
+    const eventId = await Storage.get("matchEventId");
+    return navigate(eventId ? "match_detail" : "matches");
+  }
+  navigate("matches");
 });

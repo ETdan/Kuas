@@ -156,7 +156,13 @@ leaguesContainer.addEventListener("click", async (e) => {
   if (!card) return;
   const slug = card.getAttribute("data-slug");
   if (slug) {
-    await Storage.set("leagueSlug", slug);
+    await Promise.all([
+      Storage.set("leagueSlug", slug),
+      Storage.set("lastLocation", "league"),
+    ]);
+    if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
+      chrome.action.setPopup({ popup: "league/league.html" });
+    }
     window.location.href = "league/league.html";
   }
 });

@@ -1,21 +1,16 @@
 /**
  * highlights.js - Match Highlights view module.
  * Matchday Edition / Broadcast Reel Theme
+ * Extracts verified match highlights with uploaded time, duration, and direct playback.
  */
 
 import { Storage } from "../storage.js";
 import { escapeHTML } from "../utils.js";
 
-const CACHE_PREFIX  = "yt-highlights:v3:";
-const CACHE_TTL_MS  = 12 * 60 * 60 * 1000;
-const MAX_OPTIONS   = 3;
-const TIMEOUT_MS    = 2500;
-
-const INVIDIOUS_INSTANCES = [
-  "https://inv.tux.pizza",
-  "https://invidious.drgns.space",
-  "https://vid.puffyan.us",
-];
+const CACHE_PREFIX = "yt-highlights:v5:";
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const MAX_OPTIONS  = 4;
+const TIMEOUT_MS   = 6000;
 
 // ---------------------------------------------------------------------------
 // Cache helpers
@@ -25,9 +20,14 @@ async function readCache(key) {
   try {
     const parsed = await Storage.get(key);
     if (!parsed || !Array.isArray(parsed.data) || !parsed.expiresAt) return null;
-    if (Date.now() > parsed.expiresAt) { await Storage.remove(key); return null; }
+    if (Date.now() > parsed.expiresAt) {
+      await Storage.remove(key);
+      return null;
+    }
     return parsed.data;
-  } catch (_e) { return null; }
+  } catch (_e) {
+    return null;
+  }
 }
 
 async function writeCache(key, data) {
@@ -37,65 +37,91 @@ async function writeCache(key, data) {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch helpers
+// YouTube direct search scraper
 // ---------------------------------------------------------------------------
 
 async function fetchWithTimeout(url, timeoutMs = TIMEOUT_MS) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
     clearTimeout(id);
     return res;
-  } catch (e) { clearTimeout(id); throw e; }
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
 }
 
-async function searchPiped(query) {
-  const url = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(query)}&filter=videos`;
+async function searchYouTube(query) {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
   const res = await fetchWithTimeout(url);
-  if (!res.ok) throw new Error("Piped API failed");
-  const json  = await res.json();
-  const items = json.items || json || [];
-  return items
-    .filter((v) => v.url || v.id)
-    .slice(0, MAX_OPTIONS)
-    .map((v) => ({
-      title:     v.title || "Match Highlight",
-      id:        v.url ? v.url.replace("/watch?v=", "") : v.id,
-      author:    v.uploaderName || v.uploader || "",
-      thumbnail: v.thumbnail || (v.id ? `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg` : ""),
-    }));
+  if (!res.ok) throw new Error(`YouTube responded with status ${res.status}`);
+
+  const html = await res.text();
+  const match = html.match(/var ytInitialData = ({.*?});<\/script>/s) ||
+                html.match(/ytInitialData\s*=\s*({.+?});/);
+  if (!match) throw new Error("Could not parse YouTube initial data");
+
+  const data = JSON.parse(match[1]);
+  const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
+  if (!Array.isArray(contents)) return [];
+
+  const videos = [];
+  for (const section of contents) {
+    const items = section?.itemSectionRenderer?.contents;
+    if (!Array.isArray(items)) continue;
+
+    for (const item of items) {
+      const vr = item.videoRenderer;
+      if (!vr?.videoId) continue;
+
+      const title = vr.title?.runs?.map((r) => r.text).join("") || vr.title?.simpleText || "Match Highlight";
+      const author = vr.ownerText?.runs?.[0]?.text || vr.shortBylineText?.runs?.[0]?.text || "";
+      const duration = vr.lengthText?.simpleText || "";
+      const uploaded = vr.publishedTimeText?.simpleText || "";
+      const views = vr.shortViewCountText?.simpleText || "";
+      const thumbs = vr.thumbnail?.thumbnails || [];
+      const thumbnail = thumbs.length
+        ? thumbs[thumbs.length - 1].url
+        : `https://i.ytimg.com/vi/${vr.videoId}/hqdefault.jpg`;
+
+      videos.push({
+        id: vr.videoId,
+        title,
+        author,
+        duration,
+        uploaded,
+        views,
+        thumbnail,
+      });
+
+      if (videos.length >= MAX_OPTIONS) break;
+    }
+    if (videos.length >= MAX_OPTIONS) break;
+  }
+
+  return videos;
 }
 
-async function searchInvidious(instance, query) {
-  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
-  const res = await fetchWithTimeout(url);
-  if (!res.ok) throw new Error(`Invidious failed on ${instance}`);
-  const results = await res.json();
-  if (!Array.isArray(results) || !results.length) return [];
-  return results.slice(0, MAX_OPTIONS).map((v) => ({
-    title:     v.title || "Match Highlight",
-    id:        v.videoId,
-    author:    v.author || "",
-    thumbnail: v.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
-  }));
-}
-
-async function getHighlights(query) {
+export async function getHighlights(query) {
   const cacheKey = CACHE_PREFIX + query;
   const cached   = await readCache(cacheKey);
   if (cached?.length) return cached;
 
   try {
-    const results = await searchPiped(query);
-    if (results.length) { await writeCache(cacheKey, results); return results; }
-  } catch (_e) {}
-
-  for (const inst of INVIDIOUS_INSTANCES) {
-    try {
-      const results = await searchInvidious(inst, query);
-      if (results.length) { await writeCache(cacheKey, results); return results; }
-    } catch (_e) {}
+    const results = await searchYouTube(query);
+    if (results.length) {
+      await writeCache(cacheKey, results);
+      return results;
+    }
+  } catch (err) {
+    console.warn("Direct YouTube search error:", err);
   }
 
   return [];
@@ -110,36 +136,60 @@ function renderHighlightOptionHTML(highlight, index, ytSearchUrl) {
     ? `https://www.youtube.com/watch?v=${escapeHTML(highlight.id)}`
     : ytSearchUrl;
 
+  const durationHTML = highlight.duration
+    ? `<span class="duration-badge">${escapeHTML(highlight.duration)}</span>`
+    : "";
+
   const thumbHTML = highlight.thumbnail
     ? `<img class="highlight-thumbnail" src="${escapeHTML(highlight.thumbnail)}" alt="${escapeHTML(highlight.title)}" loading="lazy">`
     : `<div class="thumb-fallback">🎬</div>`;
+
   const authorHTML = highlight.author
-    ? `<div class="highlight-author">Channel: ${escapeHTML(highlight.author)}</div>`
+    ? `<span class="highlight-author"><span class="author-icon">📺</span> ${escapeHTML(highlight.author)}</span>`
+    : "";
+
+  const uploadedHTML = highlight.uploaded
+    ? `<span class="highlight-uploaded"><span class="clock-icon">⏱</span> ${escapeHTML(highlight.uploaded)}</span>`
+    : "";
+
+  const viewsHTML = highlight.views
+    ? `<span class="highlight-views"><span class="eye-icon">👁</span> ${escapeHTML(highlight.views)}</span>`
     : "";
 
   return `
-    <div class="highlight-video">
-      <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="highlight-link">
-        <div class="thumb-frame">
-          ${thumbHTML}
-          <div class="play-overlay">▶</div>
-        </div>
+    <div class="highlight-video" data-video-url="${escapeHTML(videoUrl)}">
+      <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="thumb-frame" title="Watch highlight on YouTube">
+        ${thumbHTML}
+        ${durationHTML}
+        <div class="play-overlay">▶</div>
       </a>
       <div class="highlight-info">
-        <span class="option-badge">REEL OPTION ${index + 1}</span>
-        <h3 class="highlight-title">${escapeHTML(highlight.title)}</h3>
-        ${authorHTML}
-        <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="watch-now-btn">
-          WATCH HIGHLIGHT ↗
+        <div class="highlight-info-top">
+          <span class="option-badge">REEL OPTION ${index + 1}</span>
+          <div class="highlight-meta-tags">
+            ${authorHTML}
+            ${uploadedHTML}
+          </div>
+        </div>
+
+        <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="highlight-title-link">
+          <h3 class="highlight-title" title="${escapeHTML(highlight.title)}">${escapeHTML(highlight.title)}</h3>
         </a>
+
+        <div class="highlight-actions">
+          ${viewsHTML}
+          <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="watch-video-btn">
+            <span class="btn-icon">▶</span> WATCH HIGHLIGHT ↗
+          </a>
+        </div>
       </div>
     </div>
   `;
 }
 
-function renderHighlightsHTML(highlights, matchName, ytSearchUrl) {
+export function renderHighlightsHTML(highlights, matchName, ytSearchUrl) {
   const sectionTitle = highlights.length
-    ? `TOP HIGHLIGHT OPTIONS (${highlights.length}):`
+    ? `AVAILABLE BROADCAST REELS (${highlights.length})`
     : "No pre-fetched video streams available.";
 
   const directCard = `
@@ -163,7 +213,9 @@ function renderHighlightsHTML(highlights, matchName, ytSearchUrl) {
   return `
     ${directCard}
     <div class="highlights-section-title">${sectionTitle}</div>
-    ${optionsHTML}
+    <div class="highlights-list">
+      ${optionsHTML}
+    </div>
   `;
 }
 
@@ -184,12 +236,12 @@ export async function init(container, navigate) {
     <div id="highlights-container">
       <div class="info-msg">
         <div class="loader"></div>
-        <span>SEARCHING MATCH HIGHLIGHTS…</span>
+        <span>SEARCHING BROADCAST HIGHLIGHTS…</span>
       </div>
     </div>
   `;
 
-  container.querySelector("#highlightBackBtn").addEventListener("click", () => navigate("matches"));
+  container.querySelector("#highlightBackBtn").addEventListener("click", () => navigate("back"));
 
   const highlightsContainer = container.querySelector("#highlights-container");
 
@@ -209,3 +261,4 @@ export async function init(container, navigate) {
     highlightsContainer.innerHTML = renderHighlightsHTML([], matchName, ytSearchUrl);
   }
 }
+
