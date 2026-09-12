@@ -1,147 +1,211 @@
-var LOCAL_STORAGE_KEY = "match-name";
-var HIGHLIGHTS_CACHE_PREFIX = "yt-highlights:v2:";
-var CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+/**
+ * highlights.js - Match Highlights view module.
+ * Matchday Edition / Broadcast Reel Theme
+ */
 
-var highlightsContainer = document.getElementById("highlights-container");
+import { Storage } from "../storage.js";
+import { escapeHTML } from "../utils.js";
 
-async function init() {
-  const match = localStorage.getItem(LOCAL_STORAGE_KEY);
+const CACHE_PREFIX  = "yt-highlights:v3:";
+const CACHE_TTL_MS  = 12 * 60 * 60 * 1000;
+const MAX_OPTIONS   = 3;
+const TIMEOUT_MS    = 2500;
 
-  if (!match) {
-    highlightsContainer.innerHTML =
-      "<p>No match data found. Please select a match from the matches page.</p>";
-    return;
-  }
+const INVIDIOUS_INSTANCES = [
+  "https://inv.tux.pizza",
+  "https://invidious.drgns.space",
+  "https://vid.puffyan.us",
+];
 
-  const query = `${match} highlights`;
-  // const query = "Manchester United vs Bournemouth highlights";
+// ---------------------------------------------------------------------------
+// Cache helpers
+// ---------------------------------------------------------------------------
 
+async function readCache(key) {
   try {
-    console.log(query, "query");
+    const parsed = await Storage.get(key);
+    if (!parsed || !Array.isArray(parsed.data) || !parsed.expiresAt) return null;
+    if (Date.now() > parsed.expiresAt) { await Storage.remove(key); return null; }
+    return parsed.data;
+  } catch (_e) { return null; }
+}
 
-    const highlights = await getHighlights(query);
-    console.log(highlights, "/////////////heighlights");
+async function writeCache(key, data) {
+  try {
+    await Storage.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+  } catch (_e) {}
+}
 
-    renderHighlights(highlights);
-  } catch (error) {
-    console.error("Error fetching highlights:", error);
-    highlightsContainer.innerHTML = "";
-    const errorText = document.createElement("p");
-    errorText.textContent = `Failed to load highlights: ${error.message || "Unknown error"}`;
-    highlightsContainer.appendChild(errorText);
-  }
+// ---------------------------------------------------------------------------
+// Fetch helpers
+// ---------------------------------------------------------------------------
+
+async function fetchWithTimeout(url, timeoutMs = TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (e) { clearTimeout(id); throw e; }
+}
+
+async function searchPiped(query) {
+  const url = `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(query)}&filter=videos`;
+  const res = await fetchWithTimeout(url);
+  if (!res.ok) throw new Error("Piped API failed");
+  const json  = await res.json();
+  const items = json.items || json || [];
+  return items
+    .filter((v) => v.url || v.id)
+    .slice(0, MAX_OPTIONS)
+    .map((v) => ({
+      title:     v.title || "Match Highlight",
+      id:        v.url ? v.url.replace("/watch?v=", "") : v.id,
+      author:    v.uploaderName || v.uploader || "",
+      thumbnail: v.thumbnail || (v.id ? `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg` : ""),
+    }));
+}
+
+async function searchInvidious(instance, query) {
+  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
+  const res = await fetchWithTimeout(url);
+  if (!res.ok) throw new Error(`Invidious failed on ${instance}`);
+  const results = await res.json();
+  if (!Array.isArray(results) || !results.length) return [];
+  return results.slice(0, MAX_OPTIONS).map((v) => ({
+    title:     v.title || "Match Highlight",
+    id:        v.videoId,
+    author:    v.author || "",
+    thumbnail: v.videoThumbnails?.[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
+  }));
 }
 
 async function getHighlights(query) {
-  const instance = "https://yewtu.be"; // You can swap this for any Invidious instance
-  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=date&limit=5`;
+  const cacheKey = CACHE_PREFIX + query;
+  const cached   = await readCache(cacheKey);
+  if (cached?.length) return cached;
+
   try {
-    const response = await fetch(url);
-    const results = await response.json();
+    const results = await searchPiped(query);
+    if (results.length) { await writeCache(cacheKey, results); return results; }
+  } catch (_e) {}
 
-    // Results are already clean JSON objects
-    return results.slice(0, 5).map((video) => ({
-      title: video.title,
-      id: video.videoId,
-      author: video.author,
-      thumbnail: video.videoThumbnails[0].url,
-    }));
-  } catch (error) {
-    console.error("Invidious search failed:", error);
+  for (const inst of INVIDIOUS_INSTANCES) {
+    try {
+      const results = await searchInvidious(inst, query);
+      if (results.length) { await writeCache(cacheKey, results); return results; }
+    } catch (_e) {}
   }
+
+  return [];
 }
 
-async function safeJson(response) {
-  try {
-    return await response.json();
-  } catch (_error) {
-    return {};
-  }
+// ---------------------------------------------------------------------------
+// HTML templates
+// ---------------------------------------------------------------------------
+
+function renderHighlightOptionHTML(highlight, index, ytSearchUrl) {
+  const videoUrl = highlight.id
+    ? `https://www.youtube.com/watch?v=${escapeHTML(highlight.id)}`
+    : ytSearchUrl;
+
+  const thumbHTML = highlight.thumbnail
+    ? `<img class="highlight-thumbnail" src="${escapeHTML(highlight.thumbnail)}" alt="${escapeHTML(highlight.title)}" loading="lazy">`
+    : `<div class="thumb-fallback">🎬</div>`;
+  const authorHTML = highlight.author
+    ? `<div class="highlight-author">Channel: ${escapeHTML(highlight.author)}</div>`
+    : "";
+
+  return `
+    <div class="highlight-video">
+      <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="highlight-link">
+        <div class="thumb-frame">
+          ${thumbHTML}
+          <div class="play-overlay">▶</div>
+        </div>
+      </a>
+      <div class="highlight-info">
+        <span class="option-badge">REEL OPTION ${index + 1}</span>
+        <h3 class="highlight-title">${escapeHTML(highlight.title)}</h3>
+        ${authorHTML}
+        <a href="${videoUrl}" target="_blank" rel="noopener noreferrer" class="watch-now-btn">
+          WATCH HIGHLIGHT ↗
+        </a>
+      </div>
+    </div>
+  `;
 }
 
-function readCache(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
+function renderHighlightsHTML(highlights, matchName, ytSearchUrl) {
+  const sectionTitle = highlights.length
+    ? `TOP HIGHLIGHT OPTIONS (${highlights.length}):`
+    : "No pre-fetched video streams available.";
 
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.data) || !parsed.expiresAt)
-      return null;
-    if (Date.now() > parsed.expiresAt) {
-      localStorage.removeItem(key);
-      return null;
-    }
+  const directCard = `
+    <div class="direct-yt-card">
+      <div class="direct-yt-content">
+        <span class="direct-yt-icon">▶</span>
+        <div class="direct-yt-text">
+          <strong>Official Broadcast & YouTube Hub</strong>
+          <span>Search and stream verified match highlights for "${escapeHTML(matchName)}"</span>
+        </div>
+      </div>
+      <a href="${ytSearchUrl}" target="_blank" rel="noopener noreferrer" class="direct-yt-btn">OPEN YOUTUBE ↗</a>
+    </div>
+  `;
 
-    return parsed.data;
-  } catch (_error) {
-    return null;
-  }
+  const optionsHTML = highlights
+    .slice(0, MAX_OPTIONS)
+    .map((h, i) => renderHighlightOptionHTML(h, i, ytSearchUrl))
+    .join("");
+
+  return `
+    ${directCard}
+    <div class="highlights-section-title">${sectionTitle}</div>
+    ${optionsHTML}
+  `;
 }
 
-function writeCache(key, data) {
-  try {
-    localStorage.setItem(
-      key,
-      JSON.stringify({
-        data,
-        expiresAt: Date.now() + CACHE_TTL_MS,
-      }),
-    );
-  } catch (_error) {
-    // Ignore cache write failures so rendering can continue.
-  }
-}
+// ---------------------------------------------------------------------------
+// View init
+// ---------------------------------------------------------------------------
 
-function buildEmbedUrl(videoId) {
-  const params = new URLSearchParams({
-    feature: "oembed",
-  });
-  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
-}
+export async function init(container, navigate) {
+  const matchName = await Storage.get("match-name");
 
-function renderHighlights(highlights) {
-  if (highlights.length === 0) {
-    highlightsContainer.innerHTML = "<p>No highlights found.</p>";
+  container.innerHTML = `
+    <div class="highlight-header">
+      <button class="back-btn" id="highlightBackBtn">
+        <span class="back-arrow">‹</span> MATCHES
+      </button>
+      <h2 id="highlight-match-title" class="highlight-match-title">${escapeHTML(matchName || "Match Highlights")}</h2>
+    </div>
+    <div id="highlights-container">
+      <div class="info-msg">
+        <div class="loader"></div>
+        <span>SEARCHING MATCH HIGHLIGHTS…</span>
+      </div>
+    </div>
+  `;
+
+  container.querySelector("#highlightBackBtn").addEventListener("click", () => navigate("matches"));
+
+  const highlightsContainer = container.querySelector("#highlights-container");
+
+  if (!matchName) {
+    highlightsContainer.innerHTML = `<div class="info-msg">No match selected. Return to fixtures and pick a match.</div>`;
     return;
   }
-  console.log(highlights, "filtered content");
 
-  highlightsContainer.innerHTML = "";
+  const query       = `${matchName} highlights`;
+  const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 
-  highlights.forEach((highlight) => {
-    const container = document.createElement("div");
-    container.className = "highlight-video";
-
-    // Always show thumbnail as a clickable link to YouTube
-    const link = document.createElement("a");
-    if (highlight.id) {
-      link.href = `https://www.youtube.com/watch?v=${highlight.id}`;
-    } else {
-      link.href = highlight.thumbnail;
-    }
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-
-    const img = document.createElement("img");
-    img.src = highlight.thumbnail;
-    img.alt = highlight.title;
-    img.className = "highlight-thumbnail";
-    link.appendChild(img);
-    container.appendChild(link);
-
-    const titleObj = document.createElement("h6");
-    titleObj.textContent = highlight.title;
-    container.appendChild(titleObj);
-
-    if (highlight.author) {
-      const authorObj = document.createElement("div");
-      authorObj.className = "highlight-author";
-      authorObj.textContent = `By: ${highlight.author}`;
-      container.appendChild(authorObj);
-    }
-
-    highlightsContainer.appendChild(container);
-  });
+  try {
+    const highlights = await getHighlights(query);
+    highlightsContainer.innerHTML = renderHighlightsHTML(highlights, matchName, ytSearchUrl);
+  } catch (err) {
+    console.error("Error fetching highlights:", err);
+    highlightsContainer.innerHTML = renderHighlightsHTML([], matchName, ytSearchUrl);
+  }
 }
-
-init();

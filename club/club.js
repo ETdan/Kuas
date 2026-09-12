@@ -1,96 +1,81 @@
-var clubLeague = localStorage.getItem("leagueSlug");
+/**
+ * club.js - Clubs list view module.
+ * Matchday Edition / Panini Sticker Album Theme
+ */
 
-// club matches
+import { Storage } from "../storage.js";
+import { escapeHTML, ensureHttps } from "../utils.js";
+import { getLeagueTeams } from "../api.js";
 
-// players
+function renderTeamCardHTML(team) {
+  const logoUrl  = team.logos?.length ? ensureHttps(team.logos[0].href) : "";
+  const teamName = escapeHTML(team.displayName || team.name || "Team");
+  const abbrev   = escapeHTML(team.abbreviation || team.shortDisplayName || "FC");
+  const logoHTML = logoUrl
+    ? `<img class="club-logo" src="${logoUrl}" alt="${teamName}" loading="lazy">`
+    : `<span class="club-logo-fallback">🛡</span>`;
 
-var clubsContainer = document.getElementById("clubs-container");
-var teams = [];
-async function getTeams() {
-  const response = await fetch(
-    `https://site.api.espn.com/apis/site/v2/sports/soccer/${clubLeague}/teams`,
-  );
-  const res = await response.json();
-  // console.log(res, "////////////////////res");
-  const teams = res.sports[0].leagues[0].teams;
-  renderTeams(teams);
-  return teams;
+  return `
+    <div class="club" data-team-id="${escapeHTML(String(team.id))}" role="button" tabindex="0" aria-label="${teamName}">
+      <span class="club-abbrev-badge">${abbrev}</span>
+      <div class="club-logo-frame">
+        ${logoHTML}
+      </div>
+      <div class="club-name" title="${teamName}">${teamName}</div>
+    </div>
+  `;
 }
 
-function renderTeams(teams) {
-  // console.log(teams, "////////////////////teams");
+export async function init(container, navigate) {
+  const slug = await Storage.get("leagueSlug");
 
-  for (const teamObj of teams) {
-    let team = teamObj.team;
-    var teamElement = document.createElement("div");
-    teamElement.classList.add("club");
+  container.innerHTML = `
+    <div class="clubs-page-header">
+      <h2 class="clubs-title">MEMBER CLUBS</h2>
+    </div>
+    <div id="clubs-container">
+      <div class="info-msg">
+        <div class="loader"></div>
+        <span>SCOUTING CLUBS…</span>
+      </div>
+    </div>
+  `;
 
-    var logo = document.createElement("img");
-    logo.src = team.logos && team.logos[0] ? team.logos[0].href : "";
-    logo.alt = team.displayName;
-    logo.classList.add("club-logo");
+  const clubsContainer = container.querySelector("#clubs-container");
 
-    var teamName = document.createElement("div");
-    teamName.classList.add("club-name");
-    teamName.innerText = team.displayName;
+  if (!slug) {
+    clubsContainer.innerHTML = `<div class="info-msg">No league selected.</div>`;
+    return;
+  }
 
-    teamElement.appendChild(logo);
-    teamElement.appendChild(teamName);
-    teamElement.addEventListener("click", function (e) {
+  // Event delegation
+  clubsContainer.addEventListener("click", async (e) => {
+    const card = e.target.closest(".club");
+    if (!card) return;
+    const teamId = card.getAttribute("data-team-id");
+    if (teamId) {
+      await Storage.set("teamId", teamId);
+      navigate("club_detail");
+    }
+  });
+
+  // Keyboard accessibility
+  clubsContainer.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      console.log(team, "////////////team clicked");
-      localStorage.setItem("teamId", team.id);
-      // Ensure content is defined
-      if (typeof content === "undefined" || !content) {
-        var contentElem = document.getElementById("content");
-        if (!contentElem) {
-          alert("Content element not found.");
-          return;
-        }
-        window.content = contentElem;
-      }
-      loadPage("club_detail");
-    });
-    clubsContainer.appendChild(teamElement);
+      e.target.closest(".club")?.click();
+    }
+  });
+
+  try {
+    const teams = await getLeagueTeams(slug);
+    if (!teams.length) {
+      clubsContainer.innerHTML = `<div class="info-msg">No clubs found for this competition.</div>`;
+      return;
+    }
+    clubsContainer.innerHTML = teams.map(renderTeamCardHTML).join("");
+  } catch (err) {
+    console.error("Error fetching teams:", err);
+    clubsContainer.innerHTML = `<div class="error-msg">Failed to load clubs.</div>`;
   }
 }
-
-getTeams();
-
-// {
-//     "id": "337",
-//     "uid": "s:600~t:337",
-//     "slug": "eng.brentford",
-//     "abbreviation": "BRE",
-//     "displayName": "Brentford",
-//     "shortDisplayName": "Brentford",
-//     "name": "Brentford",
-//     "nickname": "Brentford",
-//     "location": "Brentford",
-//     "color": "f42727",
-//     "alternateColor": "f8ced9",
-//     "isActive": true,
-//     "isAllStar": false,
-//     "logos": [
-//         {
-//             "href": "https://a.espncdn.com/i/teamlogos/soccer/500/337.png",
-//             "alt": "",
-//             "rel": [
-//                 "full",
-//                 "default"
-//             ],
-//             "width": 500,
-//             "height": 500
-//         },
-//         {
-//             "href": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/337.png",
-//             "alt": "",
-//             "rel": [
-//                 "full",
-//                 "dark"
-//             ],
-//             "width": 500,
-//             "height": 500
-//         }
-//     ]
-// }

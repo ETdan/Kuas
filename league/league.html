@@ -1,23 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>League</title>
-    <link rel="stylesheet" href="leagua.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kuas — Matchday Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/jpeg" href="../icons/Golazo.jpg">
+  <link rel="stylesheet" href="league.css">
 </head>
 <body>
-    <header>
-        <nav>
-            <a href="#" class="nav-link" data-page="matches">Matches</a>
-            <a href="#" class="nav-link" data-page="standing">Standing</a>
-            <a href="#" class="nav-link" data-page="club">club</a>
-            <a href="/" class="home" id="home">home</a>
-        </nav>
-    </header>
-    <main>
-        <div id="content"></div>
-    </main>
-    <script src="league.js"></script>
+  <header class="league-header">
+    <div class="header-top-bar">
+      <img class="league-header-logo" src="../icons/Golazo.jpg" alt="Kuas Logo">
+      <div class="league-meta-info">
+        <span class="competition-tag">COMPETITION</span>
+        <h1 id="league-title-text" class="league-title-text">MATCHDAY HUB</h1>
+      </div>
+      <a href="#" class="nav-home-btn" id="home" title="Return to League Selection">
+        <span class="home-icon">‹</span>
+        <span class="home-label">LEAGUES</span>
+      </a>
+    </div>
+
+    <nav class="matchday-nav">
+      <a href="#" class="nav-link" data-page="matches">
+        <span class="nav-icon">⚽</span>
+        <span class="nav-text">MATCHES</span>
+      </a>
+      <a href="#" class="nav-link" data-page="standing">
+        <span class="nav-icon">🏆</span>
+        <span class="nav-text">STANDINGS</span>
+      </a>
+      <a href="#" class="nav-link" data-page="club">
+        <span class="nav-icon">🛡️</span>
+        <span class="nav-text">CLUBS</span>
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="content"></div>
+  </main>
+
+  <!-- Single module entry — all view imports happen inside league.js -->
+  <script type="module" src="league.js"></script>
 </body>
 </html>

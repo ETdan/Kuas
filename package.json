@@ -1,15 +1,11 @@
 {
   "name": "kuas",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A Chrome extension for following football leagues.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No tests configured\" && exit 0"
   },
-  "keywords": [],
+  "keywords": ["chrome-extension", "football", "soccer", "espn"],
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "youtube-sr": "^4.3.12"
-  }
+  "license": "ISC"
 }

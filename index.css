@@ -1,91 +1,448 @@
-/* Root / popup layout */
+/* ============================================================
+   KUAS — FOOTBALL ART & MATCHDAY EDITION DESIGN SYSTEM
+   Inspired by retro screenprint & risograph football artwork
+   ============================================================ */
+
+:root {
+  --art-red: #D8232A;
+  --art-red-dark: #B3171D;
+  --art-red-glow: rgba(216, 35, 42, 0.45);
+  --art-yellow: #FFD100;
+  --art-yellow-hover: #FFE600;
+  --art-yellow-glow: rgba(255, 209, 0, 0.35);
+  --art-navy-dark: #070B14;
+  --art-navy: #0D1424;
+  --art-surface: #141E34;
+  --art-surface-hover: #1A2744;
+  --art-surface-elevated: #223254;
+  --art-cream: #FAF6EE;
+  --art-cream-muted: #94A3B8;
+  --art-border: rgba(255, 255, 255, 0.1);
+  --art-border-gold: rgba(255, 209, 0, 0.4);
+  --art-green: #10B981;
+  --font-display: 'Bebas Neue', 'Impact', 'Trebuchet MS', sans-serif;
+  --font-body: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
-body {
+html {
+  width: 550px;
+  height: 580px;
+  max-height: 580px;
+  overflow: hidden; /* Prevents outer Chrome window scrollbar */
   margin: 0;
-  padding: 12px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #050816;
-  color: #f9fafb;
-  width: 520px; /* roomier extension popup */
-  min-height: 640px;
+  padding: 0;
 }
 
-#main_page {
-  margin: 0 0 4px;
-  font-size: 1.4rem;
+body {
+  width: 550px;
+  height: 580px;
+  max-height: 580px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  background-color: var(--art-navy-dark);
+  background-image: 
+    radial-gradient(circle at 100% 0%, rgba(216, 35, 42, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 0% 100%, rgba(255, 209, 0, 0.08) 0%, transparent 40%),
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 12px 12px;
+  color: var(--art-cream);
+  overflow: hidden; /* Single internal scroll container only */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   MASTHEAD & HEADER
+   ============================================================ */
+
+.masthead {
+  flex-shrink: 0;
+  padding: 12px 16px 10px;
+  background: linear-gradient(180deg, #162035 0%, #0D1424 100%);
+  border-bottom: 2px solid var(--art-red);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  position: relative;
+  z-index: 10;
+}
+
+/* Halftone / Net accent bar */
+.masthead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--art-red) 0%, var(--art-yellow) 50%, var(--art-red) 100%);
+}
+
+.masthead-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.masthead-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid var(--art-yellow);
+  box-shadow: 0 4px 12px rgba(216, 35, 42, 0.4);
+  display: block;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.masthead-logo:hover {
+  transform: scale(1.05) rotate(-2deg);
+}
+
+.masthead-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  letter-spacing: 0.12em;
+  line-height: 0.95;
+  color: var(--art-cream);
+  text-shadow: 2px 2px 0px rgba(216, 35, 42, 0.9), 4px 4px 0px rgba(0, 0, 0, 0.8);
+}
+
+.brand-sub {
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
+  color: var(--art-yellow);
   text-transform: uppercase;
-  color: #e5e7eb;
+  margin-top: 3px;
 }
 
-#available_leagues {
-  margin: 0 0 10px;
-  font-size: 0.9rem;
+/* ---- Search & Filters ---- */
+.search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--art-navy-dark);
+  border: 1.5px solid var(--art-border);
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 35px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: var(--art-yellow);
+  background: #0A101D;
+  box-shadow: 0 0 0 2px var(--art-yellow-glow);
+}
+
+.search-icon {
+  font-size: 0.85rem;
+  margin-right: 8px;
+  opacity: 0.7;
+}
+
+#league-search {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--art-cream);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
   font-weight: 500;
-  color: #9ca3af;
+  outline: none;
 }
 
+#league-search::placeholder {
+  color: #64748B;
+  font-size: 0.8rem;
+}
+
+.clear-search-btn {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.clear-search-btn:hover {
+  color: var(--art-yellow);
+}
+
+/* Category Filter Chips */
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  background: rgba(20, 30, 52, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  color: var(--art-cream-muted);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  background: var(--art-surface-hover);
+  color: var(--art-cream);
+  border-color: rgba(255, 209, 0, 0.4);
+}
+
+.chip.active {
+  background: var(--art-yellow);
+  color: var(--art-navy-dark);
+  border-color: var(--art-yellow);
+  font-weight: 700;
+  box-shadow: 0 2px 8px var(--art-yellow-glow);
+}
+
+/* ============================================================
+   MAIN CONTENT & LEAGUE GRID
+   ============================================================ */
+
+main {
+  flex: 1;
+  min-height: 0; /* CRITICAL: prevents double scrollbar */
+  padding: 10px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.section-label-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  color: var(--art-cream);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-heading::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  background: var(--art-red);
+  border-radius: 2px;
+}
+
+.league-count-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(255, 209, 0, 0.15);
+  color: var(--art-yellow);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 209, 0, 0.3);
+}
+
+/* Roomier 3-column Grid with fixed row heights to prevent stretching on 1-2 results */
 #leagues {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
-  max-height: 520px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 152px;
+  align-content: start; /* Anchors items to top, prevents cards from stretching vertically */
+  gap: 12px;
   overflow-y: auto;
-  padding-right: 4px;
+  overflow-x: hidden;
+  padding: 6px 8px 16px 8px; /* Left & right padding so hover shadows are never cut off */
 }
 
-/* League cards */
+/* ---- Roomier Collectible League Cards ---- */
 .league-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px;
-  background: radial-gradient(circle at top, #1f2937 0, #020617 60%);
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 10px 12px;
+  height: 152px;
+  max-height: 152px;
+  box-sizing: border-box;
+  background: var(--art-surface);
+  border-radius: 14px;
+  border: 1.5px solid var(--art-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out,
-    border-color 0.15s ease-out, background 0.15s ease-out;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease,
+              border-color 0.18s ease,
+              box-shadow 0.18s ease,
+              background 0.18s ease;
 }
 
+/* Subtle corner badge accent */
+.league-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 16px 16px 0;
+  border-color: transparent var(--art-border) transparent transparent;
+  transition: border-color 0.2s;
+}
+
+/* PURE VERTICAL LIFT - NO SCALE to avoid horizontal clipping on container edges */
 .league-container:hover {
-  transform: translateY(-2px);
-  border-color: #60a5fa;
-  box-shadow: 0 16px 35px rgba(37, 99, 235, 0.4);
-  background: radial-gradient(circle at top, #111827 0, #020617 70%);
+  transform: translateY(-3px);
+  border-color: var(--art-yellow);
+  background: var(--art-surface-hover);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6), 0 0 14px var(--art-yellow-glow);
+}
+
+.league-container:hover::after {
+  border-color: transparent var(--art-yellow) transparent transparent;
 }
 
 .league-container:active {
   transform: translateY(0);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.8);
+}
+
+/* Larger, prominent logo pedestal */
+.league-logo-frame {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FAF6EE 35%, #E2E8F0 100%);
+  border: 2px solid var(--art-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.league-container:hover .league-logo-frame {
+  transform: scale(1.06);
+  border-color: var(--art-yellow);
 }
 
 .league-image {
-  width: 56px;
-  height: 56px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  border-radius: 999px;
-  background: #020617;
-  padding: 4px;
 }
 
 .league-name {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.84rem;
+  font-weight: 700;
   text-align: center;
-  color: #e5e7eb;
-  line-height: 1.2;
+  color: var(--art-cream);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.5em;
+  word-break: break-word;
 }
 
-/* Scrollbar */
+.league-badge-pill {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--art-cream-muted);
+}
+
+.league-container:hover .league-badge-pill {
+  background: rgba(255, 209, 0, 0.2);
+  color: var(--art-yellow);
+}
+
+/* ============================================================
+   LOADERS & MESSAGES
+   ============================================================ */
+
+.info-msg,
+.error-msg {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--art-cream-muted);
+  font-size: 0.88rem;
+}
+
+.error-msg {
+  color: #F87171;
+}
+
+.loader {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 209, 0, 0.2);
+  border-top-color: var(--art-yellow);
+  border-radius: 50%;
+  animation: spinLoader 0.8s linear infinite;
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   CUSTOM SCROLLBAR
+   ============================================================ */
+
 #leagues::-webkit-scrollbar {
   width: 6px;
 }
@@ -95,6 +452,11 @@ body {
 }
 
 #leagues::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #2D3A54;
   border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#leagues::-webkit-scrollbar-thumb:hover {
+  background: var(--art-yellow);
 }

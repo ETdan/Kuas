@@ -1,94 +1,178 @@
-var slug = localStorage.getItem("leagueSlug");
-var standingTable = document.getElementById("standingTableBody");
-if (slug != null) {
-  fetch(`https://sports.core.api.espn.com/v3/sports/soccer/${slug}/standings`)
-    .then((response) => response.json())
-    .then(async (data) => {
-      console.log(data);
-      const rows = [];
-      for (const item of data.items) {
-        // Get team info
-        const teamData = await getTeam(
-          `http://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/seasons/2025/teams/${item.id}`,
-        );
-        const teamName = teamData.displayName;
-        const logo =
-          teamData.logos && teamData.logos.length > 0
-            ? teamData.logos[0].href
-            : "";
+/**
+ * standing.js - Standings view module.
+ * Matchday Edition / Football Art Theme
+ */
 
-        // Extract stats
-        const stats = item.records.total.stats;
-        const rank = stats.rank?.value ?? 999;
-        // Create table row
-        const tr = document.createElement("tr");
-        tr.className = "standing-row";
-        tr.innerHTML = `
-           <td>${rank}</td>
-           <td>
-             <div class="team-cell">
-               <img class="team-logo" src="${logo}" alt="${teamName} logo">
-               <span class="team-name">${teamName}</span>
-             </div>
-           </td>
-           <td>${stats.points.value}</td>
-           <td>${stats.gamesPlayed.value}</td>
-           <td>${stats.wins.value}</td>
-           <td>${stats.losses.value}</td>
-           <td>${stats.ties.value}</td>
-           <td>${stats.pointsFor.value}</td>
-           <td>${stats.pointsAgainst.value}</td>
-           <td>${stats.pointDifferential.value}</td>
-           <td>${stats.homeWins.value}</td>
-           <td>${stats.homeLosses.value}</td>
-           <td>${stats.homeTies.value}</td>
-           <td>${stats.homeGamesPlayed.value}</td>
-           <td>${stats.homePointsFor.value}</td>
-           <td>${stats.homePointsAgainst.value}</td>
-           <td>${stats.awayWins.value}</td>
-           <td>${stats.awayLosses.value}</td>
-           <td>${stats.awayTies.value}</td>
-           <td>${stats.awayGamesPlayed.value}</td>
-           <td>${stats.awayPointsFor.value}</td>
-           <td>${stats.awayPointsAgainst.value}</td>
-           <td>${stats.streak.displayValue}</td>
-        `;
-        rows.push({ rank, tr });
-      }
+import { Storage } from "../storage.js";
+import { escapeHTML, ensureHttps } from "../utils.js";
+import { getStandings, getTeamById } from "../api.js";
 
-      rows
-        .sort((a, b) => a.rank - b.rank)
-        .forEach((row) => standingTable.appendChild(row.tr));
-    });
+// ---------------------------------------------------------------------------
+// HTML template
+// ---------------------------------------------------------------------------
+
+function renderTableHTML() {
+  return `
+    <div class="standings-wrap">
+      <div class="standings-legend">
+        <span class="legend-item"><span class="legend-pip ucl"></span> UCL / Top Tier</span>
+        <span class="legend-item"><span class="legend-pip uel"></span> Continental</span>
+        <span class="legend-item"><span class="legend-pip rel"></span> Danger Zone</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="standingTable">
+          <thead>
+            <tr>
+              <th class="col-rk" title="Rank">#</th>
+              <th class="col-team" title="Team">CLUB</th>
+              <th class="col-pts" title="Points">PTS</th>
+              <th title="Games Played">GP</th>
+              <th title="Wins">W</th>
+              <th title="Draws">D</th>
+              <th title="Losses">L</th>
+              <th title="Goals For">GF</th>
+              <th title="Goals Against">GA</th>
+              <th title="Goal Difference">GD</th>
+              <th title="Current Form">STR</th>
+              <th title="Home Wins">HW</th>
+              <th title="Home Draws">HD</th>
+              <th title="Home Losses">HL</th>
+              <th title="Away Wins">AW</th>
+              <th title="Away Draws">AD</th>
+              <th title="Away Losses">AL</th>
+            </tr>
+          </thead>
+          <tbody id="standingTableBody">
+            <tr>
+              <td colspan="17" class="info-msg">
+                <div class="loader"></div>
+                <span>CALCULATING LEAGUE TABLE…</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
-async function getTeam(url) {
-  return fetch(url)
-    .then((response) => response.json())
-    .then((data) => {
-      return data;
-    });
+
+function renderStreakBadge(streak) {
+  if (!streak || streak === "-") return `<span class="streak-pill streak-neutral">-</span>`;
+  const s = String(streak).trim();
+  const first = s.charAt(0).toUpperCase();
+  if (first === "W") return `<span class="streak-pill streak-win">${escapeHTML(s)}</span>`;
+  if (first === "L") return `<span class="streak-pill streak-loss">${escapeHTML(s)}</span>`;
+  return `<span class="streak-pill streak-draw">${escapeHTML(s)}</span>`;
 }
-{
-  ("awayPointsFor");
-  ("pointsAgainst");
-  ("awayGamesPlayed");
-  ("awayWins");
-  ("losses");
-  ("points");
-  ("homeWins");
-  ("pointDifferential");
-  ("homePointsAgainst");
-  ("gamesPlayed");
-  ("ties");
-  ("awayLosses");
-  ("rank");
-  ("homePointsFor");
-  ("awayTies");
-  ("wins");
-  ("homeTies");
-  ("pointsFor");
-  ("homeLosses");
-  ("streak");
-  ("homeGamesPlayed");
-  ("awayPointsAgainst");
+
+function renderRowHTML(row, index, totalRows) {
+  const s = row.stats;
+  const rank = Number(row.rank) || (index + 1);
+  const logoHTML = row.logo
+    ? `<img class="team-logo" src="${escapeHTML(row.logo)}" alt="${escapeHTML(row.teamName)}" loading="lazy">`
+    : `<span class="team-logo-placeholder">⚽</span>`;
+
+  let zoneClass = "";
+  if (rank <= 4) zoneClass = "row-ucl";
+  else if (rank <= 6) zoneClass = "row-uel";
+  else if (rank > totalRows - 3 && totalRows > 6) zoneClass = "row-rel";
+
+  return `
+    <tr class="standing-row ${zoneClass}">
+      <td class="col-rk">
+        <span class="rank-badge">${escapeHTML(String(rank))}</span>
+      </td>
+      <td class="col-team">
+        <div class="team-cell">
+          <div class="table-logo-wrap">${logoHTML}</div>
+          <span class="team-name" title="${escapeHTML(row.teamName)}">${escapeHTML(row.teamName)}</span>
+        </div>
+      </td>
+      <td class="col-pts"><strong>${escapeHTML(String(s.pts))}</strong></td>
+      <td>${escapeHTML(String(s.gp))}</td>
+      <td>${escapeHTML(String(s.w))}</td>
+      <td>${escapeHTML(String(s.t))}</td>
+      <td>${escapeHTML(String(s.l))}</td>
+      <td>${escapeHTML(String(s.pf))}</td>
+      <td>${escapeHTML(String(s.pa))}</td>
+      <td class="col-gd">${escapeHTML(String(s.pd > 0 ? `+${s.pd}` : s.pd))}</td>
+      <td>${renderStreakBadge(s.streak)}</td>
+      <td>${escapeHTML(String(s.hw))}</td>
+      <td>${escapeHTML(String(s.ht))}</td>
+      <td>${escapeHTML(String(s.hl))}</td>
+      <td>${escapeHTML(String(s.aw))}</td>
+      <td>${escapeHTML(String(s.at))}</td>
+      <td>${escapeHTML(String(s.al))}</td>
+    </tr>
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// View init
+// ---------------------------------------------------------------------------
+
+export async function init(container) {
+  const slug = await Storage.get("leagueSlug");
+
+  container.innerHTML = renderTableHTML();
+
+  const tbody = container.querySelector("#standingTableBody");
+
+  if (!slug) {
+    tbody.innerHTML = `<tr><td colspan="17" class="info-msg">No league selected.</td></tr>`;
+    return;
+  }
+
+  try {
+    const data = await getStandings(slug);
+
+    if (!data?.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="17" class="info-msg">No standings data available for this competition.</td></tr>`;
+      return;
+    }
+
+    const year = new Date().getFullYear();
+
+    const rowPromises = data.items.map(async (item) => {
+      const teamData  = (await getTeamById(slug, item.id, year)) || {};
+      const teamName  = teamData?.displayName || teamData?.name || `Team ${item.id}`;
+      const logo      = teamData?.logos?.length
+        ? ensureHttps(teamData.logos[0].href)
+        : "";
+
+      const stats     = item.records?.total?.stats || {};
+      const val  = (key, fb = 0)  => stats[key]?.value        ?? fb;
+      const str  = (key, fb = "-") => stats[key]?.displayValue ?? fb;
+
+      return {
+        rank: val("rank", 999),
+        teamName,
+        logo,
+        stats: {
+          pts:    val("points"),
+          gp:     val("gamesPlayed"),
+          w:      val("wins"),
+          l:      val("losses"),
+          t:      val("ties"),
+          pf:     val("pointsFor"),
+          pa:     val("pointsAgainst"),
+          pd:     val("pointDifferential"),
+          hw:     val("homeWins"),
+          hl:     val("homeLosses"),
+          ht:     val("homeTies"),
+          aw:     val("awayWins"),
+          al:     val("awayLosses"),
+          at:     val("awayTies"),
+          streak: str("streak"),
+        },
+      };
+    });
+
+    const rows = (await Promise.all(rowPromises)).sort((a, b) => a.rank - b.rank);
+    tbody.innerHTML = rows.map((r, i) => renderRowHTML(r, i, rows.length)).join("");
+  } catch (err) {
+    console.error("Error loading standings:", err);
+    tbody.innerHTML = `<tr><td colspan="17" class="error-msg">Failed to load standings table.</td></tr>`;
+  }
 }

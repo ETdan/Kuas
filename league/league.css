@@ -1,0 +1,358 @@
+/* ============================================================
+   league.css — Shell layout, nav bar, and shared view styles
+   Matchday Edition / Football Art Theme
+   ============================================================ */
+
+:root {
+  --art-red: #D8232A;
+  --art-red-dark: #B3171D;
+  --art-red-glow: rgba(216, 35, 42, 0.45);
+  --art-yellow: #FFD100;
+  --art-yellow-hover: #FFE600;
+  --art-yellow-glow: rgba(255, 209, 0, 0.35);
+  --art-navy-dark: #070B14;
+  --art-navy: #0D1424;
+  --art-surface: #141E34;
+  --art-surface-hover: #1A2744;
+  --art-surface-elevated: #223254;
+  --art-cream: #FAF6EE;
+  --art-cream-muted: #94A3B8;
+  --art-border: rgba(255, 255, 255, 0.1);
+  --art-border-gold: rgba(255, 209, 0, 0.4);
+  --art-green: #10B981;
+  --font-display: 'Bebas Neue', 'Impact', 'Trebuchet MS', sans-serif;
+  --font-body: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  width: 550px;
+  height: 580px;
+  max-height: 580px;
+  overflow: hidden; /* Prevents outer Chrome window scrollbar */
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 550px;
+  height: 580px;
+  max-height: 580px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  background-color: var(--art-navy-dark);
+  background-image: 
+    radial-gradient(circle at 100% 0%, rgba(216, 35, 42, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 0% 100%, rgba(255, 209, 0, 0.08) 0%, transparent 40%),
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 12px 12px;
+  color: var(--art-cream);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Single internal scroll container only */
+}
+
+/* ============================================================
+   HEADER & TOP BAR
+   ============================================================ */
+
+.league-header {
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #162035 0%, #0D1424 100%);
+  border-bottom: 2px solid var(--art-red);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Tricolor accent border at top */
+.league-header::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, var(--art-red) 0%, var(--art-yellow) 50%, var(--art-red) 100%);
+}
+
+.header-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px 6px;
+  gap: 10px;
+}
+
+.league-header-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1.5px solid var(--art-yellow);
+  box-shadow: 0 2px 8px rgba(216, 35, 42, 0.4);
+}
+
+.league-meta-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.competition-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--art-yellow);
+  text-transform: uppercase;
+}
+
+.league-title-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  color: var(--art-cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Return to Home / Leagues Button - pure vertical lift so it never clips */
+.nav-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(20, 30, 52, 0.9);
+  border: 1.5px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  color: var(--art-cream-muted);
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-home-btn:hover {
+  background: var(--art-surface-hover);
+  border-color: var(--art-yellow);
+  color: var(--art-yellow);
+  transform: translateY(-1px);
+}
+
+.home-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ============================================================
+   MATCHDAY NAVIGATION TABS
+   ============================================================ */
+
+.matchday-nav {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: rgba(10, 15, 29, 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 6px;
+  color: var(--art-cream-muted);
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-bottom: 2.5px solid transparent;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.nav-icon {
+  font-size: 0.9rem;
+  filter: grayscale(0.6);
+  transition: filter 0.15s ease;
+}
+
+.nav-link:hover {
+  color: var(--art-cream);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-link:hover .nav-icon {
+  filter: grayscale(0);
+}
+
+.nav-link.active {
+  color: var(--art-yellow);
+  border-bottom-color: var(--art-yellow);
+  background: rgba(255, 209, 0, 0.05);
+}
+
+.nav-link.active .nav-icon {
+  filter: grayscale(0);
+}
+
+/* Glowing active tick */
+.nav-link.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2.5px;
+  left: 25%;
+  right: 25%;
+  height: 2.5px;
+  background: var(--art-yellow);
+  box-shadow: 0 0 8px var(--art-yellow);
+}
+
+/* ============================================================
+   MAIN CONTENT AREA
+   ============================================================ */
+
+main {
+  flex: 1;
+  min-height: 0; /* CRITICAL: prevents double scrollbar */
+  padding: 10px 14px 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 8px 16px 8px; /* Left & right padding prevents card hover clipping */
+}
+
+#content::-webkit-scrollbar {
+  width: 6px;
+}
+
+#content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#content::-webkit-scrollbar-thumb {
+  background: #2D3A54;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#content::-webkit-scrollbar-thumb:hover {
+  background: var(--art-yellow);
+}
+
+/* ============================================================
+   SHARED VIEW-LEVEL UTILITIES
+   ============================================================ */
+
+.view-loading,
+.info-msg,
+.error-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--art-cream-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.error-msg {
+  color: #F87171;
+}
+
+.loader {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 209, 0, 0.2);
+  border-top-color: var(--art-yellow);
+  border-radius: 50%;
+  animation: spinLoader 0.8s linear infinite;
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
+}
+
+/* Back button — used in club_detail and highlight views */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--art-surface);
+  border: 1.5px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  color: var(--art-cream);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.back-btn:hover {
+  background: var(--art-surface-hover);
+  border-color: var(--art-yellow);
+  color: var(--art-yellow);
+  transform: translateY(-1px); /* Pure vertical lift, no leftward shift to avoid clipping */
+  box-shadow: 0 2px 10px var(--art-yellow-glow);
+}
+
+/* Coming-soon placeholder */
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--art-cream-muted);
+  text-align: center;
+}
+
+.coming-soon-icon {
+  font-size: 3rem;
+  animation: pulseBall 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseBall {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15) rotate(10deg); }
+}
+
+.coming-soon h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  color: var(--art-cream);
+}
+
+.coming-soon p {
+  margin: 0;
+  font-size: 0.85rem;
+}

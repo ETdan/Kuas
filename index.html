@@ -1,16 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="index.css">
-    <title>Kuas</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kuas — Matchday Football</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
 </head>
+
 <body>
-    <h1 id="main_page" >Kuas</h1>
-    <h1 id="available_leagues" >Available Leagues</h1>
+  <header class="masthead">
+    <div class="masthead-top">
+      <img class="masthead-logo" src="icons/Golazo.jpg" alt="Kuas Logo">
+      <div class="masthead-titles">
+        <h1 id="main_page" class="brand-title">KUAS</h1>
+        <div class="brand-sub">MATCHDAY EDITION • SOCCER ARCHIVE</div>
+      </div>
+    </div>
+
+    <div class="search-section">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="league-search" placeholder="Search leagues (e.g. Premier, Champions)..."
+          autocomplete="off" spellcheck="false">
+        <button id="clear-search" class="clear-search-btn" aria-label="Clear search" style="display:none;">✕</button>
+      </div>
+      <div class="filter-chips" id="filter-chips">
+        <button class="chip active" data-filter="all">All</button>
+        <button class="chip" data-filter="europe">Top European</button>
+        <button class="chip" data-filter="americas">Americas</button>
+        <button class="chip" data-filter="cup">Cups</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="section-label-row">
+      <h2 id="available_leagues" class="section-heading">SELECT COMPETITION</h2>
+      <span id="league-count" class="league-count-badge"></span>
+    </div>
     <div id="leagues"></div>
-  
+  </main>
+
+  <script type="module" src="index.js"></script>
 </body>
- <script src="index.js"></script>
+
 </html>
