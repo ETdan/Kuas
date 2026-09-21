@@ -79,7 +79,7 @@ function renderLeagueCardHTML(league) {
   const logoUrl =
     league.logos && league.logos.length > 0
       ? ensureHttps(league.logos[0].href)
-      : "icons/missing_logo.jpg";
+      : "icons/icon128.png";
   const name = escapeHTML(league.name || "League");
   const slug = escapeHTML(league.slug || "");
   const region = getLeagueSubLabel(league.slug || "");
@@ -88,7 +88,8 @@ function renderLeagueCardHTML(league) {
     <div class="league-container ${slug}" data-slug="${slug}" role="button" tabindex="0"
          aria-label="${name}">
       <div class="league-logo-frame">
-        <img class="league-image" src="${logoUrl}" alt="${name}" loading="lazy">
+        <img class="league-image" src="${logoUrl}" alt="${name}" loading="lazy"
+             onerror="this.onerror=null;this.src='icons/icon128.png';">
       </div>
       <span class="league-name" title="${name}">${name}</span>
       <span class="league-badge-pill">${region}</span>
@@ -159,6 +160,13 @@ leaguesContainer.addEventListener("click", async (e) => {
     await Promise.all([
       Storage.set("leagueSlug", slug),
       Storage.set("lastLocation", "league"),
+      Storage.set("lastTab", "matches"),
+      Storage.remove("teamId"),
+      Storage.remove("clubSlug"),
+      Storage.remove("clubName"),
+      Storage.remove("matchEventId"),
+      Storage.remove("matchName"),
+      Storage.remove("matchInitialTab"),
     ]);
     if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
       chrome.action.setPopup({ popup: "league/league.html" });

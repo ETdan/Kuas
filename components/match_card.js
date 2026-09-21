@@ -140,7 +140,8 @@ export function renderMatchCardHTML(d, options = {}) {
             <span class="team-name" data-action="open-club"
                   data-club-slug="${escapeHTML(d.homeSlug || "")}"
                   data-club-id="${escapeHTML(d.homeId || "")}"
-                  data-club-name="${escapeHTML(d.homeName || "")}">${escapeHTML(d.homeName)}</span>
+                  data-club-name="${escapeHTML(d.homeName || "")}"
+                  title="${escapeHTML(d.homeName)}">${escapeHTML(d.homeName)}</span>
             <span class="team-side-badge">HOME</span>
           </div>
         </div>
@@ -149,7 +150,7 @@ export function renderMatchCardHTML(d, options = {}) {
           ${d.showScore 
             ? `<span class="score-digit">${escapeHTML(String(d.homeScore ?? "0"))}</span>
                <span class="score-divider">:</span>
-               <span class="score-divider">${escapeHTML(String(d.awayScore ?? "0"))}</span>`
+               <span class="score-digit">${escapeHTML(String(d.awayScore ?? "0"))}</span>`
             : `<span class="vs-text">VS</span>`}
         </div>
 
@@ -158,7 +159,8 @@ export function renderMatchCardHTML(d, options = {}) {
             <span class="team-name" data-action="open-club"
                   data-club-slug="${escapeHTML(d.awaySlug || "")}"
                   data-club-id="${escapeHTML(d.awayId || "")}"
-                  data-club-name="${escapeHTML(d.awayName || "")}">${escapeHTML(d.awayName)}</span>
+                  data-club-name="${escapeHTML(d.awayName || "")}"
+                  title="${escapeHTML(d.awayName)}">${escapeHTML(d.awayName)}</span>
             <span class="team-side-badge">AWAY</span>
           </div>
           <div class="team-logo-wrap">${awayLogo}</div>

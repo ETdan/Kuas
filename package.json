@@ -1,7 +1,7 @@
 {
   "name": "kuas",
   "version": "1.0.0",
-  "description": "A Chrome extension for following football leagues.",
+  "description": "A Chrome extension for following football leagues — matches, standings, clubs, and highlights.",
   "scripts": {
     "test": "echo \"No tests configured\" && exit 0"
   },

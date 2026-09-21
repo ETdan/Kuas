@@ -232,10 +232,6 @@ export async function getTeamRoster(slug, teamId) {
   return data;
 }
 
-export function getPlayer(refUrl) {
-  return fetchCached(refUrl, TTL.ROSTER);
-}
-
 export async function getTeamById(slug, teamId, year) {
   const byYear = await fetchCached(
     `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/seasons/${year}/teams/${teamId}`,

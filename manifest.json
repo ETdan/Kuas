@@ -1,8 +1,9 @@
 {
   "name": "Kuas",
+  "short_name": "Kuas",
   "version": "1.0.0",
   "manifest_version": 3,
-  "description": "A web extension for following football leagues — matches, standings, clubs, and highlights.",
+  "description": "A Chrome extension for following football leagues — matches, standings, clubs, and highlights.",
   "permissions": [
     "storage",
     "alarms"
@@ -13,6 +14,7 @@
   },
   "action": {
     "default_popup": "index.html",
+    "default_title": "Kuas — Football Matchday Hub",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -28,12 +30,6 @@
     "https://sports.core.api.espn.com/*",
     "https://site.api.espn.com/*",
     "https://www.youtube.com/*",
-    "https://www.thesportsdb.com/*",
-    "https://r2.thesportsdb.com/*",
-    "https://i.ytimg.com/*",
-    "https://a.espncdn.com/*"
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; frame-src https://www.youtube.com https://*.youtube.com https://www.youtube-nocookie.com https://*.youtube-nocookie.com https://*.youtu.be;"
-  }
+    "https://www.thesportsdb.com/*"
+  ]
 }

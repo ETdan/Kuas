@@ -128,8 +128,8 @@
   position: relative;
   overflow: hidden;
   transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1),
-              border-color 0.18s ease,
-              box-shadow 0.18s ease;
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 /* Matchday ticket edge stripe */
@@ -206,8 +206,17 @@
 }
 
 @keyframes pulseLive {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.04); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.04);
+  }
 }
 
 .status-post .status-pill {
@@ -225,10 +234,11 @@
 /* ---- Teams & Score Board ---- */
 .match-teams {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 4px 0;
+  min-width: 0;
 }
 
 .match-team {
@@ -236,6 +246,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .away-team {
@@ -269,12 +280,15 @@
 .team-info {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .team-info-away {
   align-items: flex-end;
   text-align: right;
+  width: 100%;
 }
 
 .team-name {
@@ -286,6 +300,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 100%;
+  max-width: 100%;
+  display: block;
   cursor: pointer;
   transition: color 0.15s;
 }
@@ -310,6 +327,8 @@
   padding: 4px 10px;
   border-radius: 8px;
   min-width: 58px;
+  flex-shrink: 0;
+  z-index: 1;
 }
 
 .match-score-board.has-score {
@@ -352,6 +371,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -363,7 +383,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
+  flex: 1;
+  min-width: 0;
 }
 
 .stadium-icon {
@@ -375,6 +396,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .highlights-btn-cue,
@@ -467,13 +489,14 @@
 /* Scoreboard banner in modal */
 .summary-scoreboard-banner {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
   background: var(--art-navy-dark);
   border: 1px solid var(--art-border);
   border-radius: 10px;
+  min-width: 0;
 }
 
 .banner-team {
@@ -483,13 +506,14 @@
   text-align: center;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .banner-logo {
   width: 44px;
   height: 44px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
 .banner-team-name {
@@ -498,6 +522,12 @@
   font-weight: 700;
   color: var(--art-cream);
   line-height: 1.2;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .banner-score-box {
@@ -623,6 +653,8 @@
   flex-direction: column;
   gap: 1px;
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .event-team-label {
@@ -1048,6 +1080,7 @@
 
 .player-lineup-name {
   flex: 1;
+  min-width: 0;
   font-size: 0.74rem;
   font-weight: 600;
   color: var(--art-cream);
@@ -1184,7 +1217,9 @@
 .form-team-title-wrap {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .form-team-title {
@@ -1195,6 +1230,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 100%;
+  max-width: 100%;
+  display: block;
 }
 
 .form-subtitle {
@@ -1372,7 +1410,3 @@
   color: var(--art-yellow);
   padding: 0 4px;
 }
-
-
-
-

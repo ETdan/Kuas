@@ -431,9 +431,8 @@ td {
   display: flex;
   align-items: center;
   gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  width: 100%;
 }
 
 .leader-name {
@@ -443,6 +442,8 @@ td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .leader-jersey,
@@ -453,18 +454,22 @@ td {
   background: rgba(255, 255, 255, 0.06);
   padding: 1px 4px;
   border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .leader-team-row {
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  width: 100%;
 }
 
 .leader-team-logo {
   width: 14px;
   height: 14px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .leader-team-name {
@@ -473,6 +478,8 @@ td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Stat Box */

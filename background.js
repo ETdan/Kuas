@@ -4,7 +4,7 @@
 import { Storage } from "./storage.js";
 
 const ALARM_NAME = "kuas_live_match_checker";
-const CHECK_INTERVAL_MINUTES = 5;
+const CHECK_INTERVAL_MINUTES = 10;
 
 async function checkLiveMatches() {
   try {

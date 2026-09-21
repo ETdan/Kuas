@@ -134,11 +134,20 @@ document.querySelectorAll(".nav-link").forEach((link) => {
 });
 
 // ---------------------------------------------------------------------------
-// Home button — back to popup root (clears lastLocation)
+// Home button — back to popup root (clears lastLocation & stale subpages)
 // ---------------------------------------------------------------------------
 document.getElementById("home")?.addEventListener("click", async (e) => {
   e.preventDefault();
-  await Storage.set("lastLocation", "home");
+  await Promise.all([
+    Storage.set("lastLocation", "home"),
+    Storage.set("lastTab", "matches"),
+    Storage.remove("teamId"),
+    Storage.remove("clubSlug"),
+    Storage.remove("clubName"),
+    Storage.remove("matchEventId"),
+    Storage.remove("matchName"),
+    Storage.remove("matchInitialTab"),
+  ]);
   if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
     chrome.action.setPopup({ popup: "index.html" });
   }
@@ -171,17 +180,38 @@ updateNavLivePill();
 // ---------------------------------------------------------------------------
 // Boot — restore last active tab or subpage seamlessly
 // ---------------------------------------------------------------------------
-Storage.get("lastTab", "matches").then(async (tab) => {
+async function boot() {
+  const currentSlug = (await Storage.get("leagueSlug")) || "eng.1";
+  const lastViewedSlug = await Storage.get("lastViewedLeagueSlug");
+
+  // Detect league switch: if the league changed, reset to matches and clear stale subpages
+  if (currentSlug !== lastViewedSlug) {
+    await Promise.all([
+      Storage.set("lastViewedLeagueSlug", currentSlug),
+      Storage.set("lastTab", "matches"),
+      Storage.remove("teamId"),
+      Storage.remove("clubSlug"),
+      Storage.remove("clubName"),
+      Storage.remove("matchEventId"),
+      Storage.remove("matchName"),
+      Storage.remove("matchInitialTab"),
+    ]);
+    return navigate("matches");
+  }
+
+  const tab = await Storage.get("lastTab", "matches");
   if (NAV_PAGES.has(tab)) {
     return navigate(tab);
   }
   if (tab === "club_detail") {
     const teamId = await Storage.get("teamId");
-    return navigate(teamId ? "club_detail" : "club");
+    if (teamId) return navigate("club_detail");
   }
   if (tab === "match_detail") {
     const eventId = await Storage.get("matchEventId");
-    return navigate(eventId ? "match_detail" : "matches");
+    if (eventId) return navigate("match_detail");
   }
   navigate("matches");
-});
+}
+
+boot();
