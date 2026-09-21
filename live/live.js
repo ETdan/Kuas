@@ -84,6 +84,26 @@ export async function init(container, navigate) {
       if (leagueCountEl) leagueCountEl.textContent = String(leagueLiveEvents.length);
       if (allCountEl) allCountEl.textContent = String(allLiveEvents.length);
 
+      // Instantly sync nav pill and action badge
+      const effectiveLiveCount = leagueLiveEvents.length > 0 ? leagueLiveEvents.length : allLiveEvents.length;
+      const navPill = document.getElementById("navLivePill");
+      if (navPill) {
+        if (effectiveLiveCount > 0) {
+          navPill.textContent = String(effectiveLiveCount);
+          navPill.style.display = "inline-flex";
+        } else {
+          navPill.style.display = "none";
+        }
+      }
+      if (typeof chrome !== "undefined" && chrome.action?.setBadgeText) {
+        if (effectiveLiveCount > 0) {
+          chrome.action.setBadgeText({ text: effectiveLiveCount > 1 ? `${effectiveLiveCount}` : "LIVE" });
+          chrome.action.setBadgeBackgroundColor({ color: "#D8232A" });
+        } else {
+          chrome.action.setBadgeText({ text: "" });
+        }
+      }
+
       const activeList = currentScope === "league" ? leagueLiveEvents : allLiveEvents;
       const mappedCards = activeList.map((e) => normalizeEspnEvent(e)).filter(Boolean);
 

@@ -156,22 +156,46 @@ document.getElementById("home")?.addEventListener("click", async (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Live badge pill updater for top navigation
+// Live badge pill updater for top navigation & toolbar action badge
 // ---------------------------------------------------------------------------
-async function updateNavLivePill() {
+export async function updateNavLivePill() {
   try {
     const pill = document.getElementById("navLivePill");
-    if (!pill) return;
-    const slug = await Storage.get("leagueSlug");
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug || "eng.1"}/scoreboard`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const liveCount = data?.events?.filter((e) => e.status?.type?.state === "in")?.length || 0;
-    if (liveCount > 0) {
-      pill.textContent = String(liveCount);
-      pill.style.display = "inline-flex";
-    } else {
-      pill.style.display = "none";
+    const slug = (await Storage.get("leagueSlug")) || "eng.1";
+
+    const [leagueRes, allRes] = await Promise.all([
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard`).catch(() => null),
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard`).catch(() => null),
+    ]);
+
+    const leagueData = leagueRes && leagueRes.ok ? await leagueRes.json().catch(() => null) : null;
+    const allData = allRes && allRes.ok ? await allRes.json().catch(() => null) : null;
+
+    const isLive = (e) =>
+      e?.status?.type?.state === "in" || e?.competitions?.[0]?.status?.type?.state === "in";
+
+    const leagueCount = (leagueData?.events || []).filter(isLive).length;
+    const allCount = (allData?.events || []).filter(isLive).length;
+
+    const effectiveCount = leagueCount > 0 ? leagueCount : allCount;
+
+    if (pill) {
+      if (effectiveCount > 0) {
+        pill.textContent = String(effectiveCount);
+        pill.style.display = "inline-flex";
+        pill.title = leagueCount > 0 ? `${leagueCount} live in this league` : `${allCount} live worldwide`;
+      } else {
+        pill.style.display = "none";
+      }
+    }
+
+    if (typeof chrome !== "undefined" && chrome.action?.setBadgeText) {
+      if (effectiveCount > 0) {
+        chrome.action.setBadgeText({ text: effectiveCount > 1 ? `${effectiveCount}` : "LIVE" });
+        chrome.action.setBadgeBackgroundColor({ color: "#D8232A" });
+      } else {
+        chrome.action.setBadgeText({ text: "" });
+      }
     }
   } catch (_e) {}
 }

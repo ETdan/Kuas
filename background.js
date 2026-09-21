@@ -4,31 +4,43 @@
 import { Storage } from "./storage.js";
 
 const ALARM_NAME = "kuas_live_match_checker";
-const CHECK_INTERVAL_MINUTES = 10;
+const CHECK_INTERVAL_MINUTES = 5;
+
+function isEventLive(event) {
+  const statusState = event?.status?.type?.state || event?.competitions?.[0]?.status?.type?.state;
+  return statusState === "in";
+}
 
 async function checkLiveMatches() {
   try {
     const stored = await chrome.storage.local.get("leagueSlug");
     const slug = stored?.leagueSlug || "eng.1";
 
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard`);
-    if (!res.ok) return;
+    // Query both selected league and worldwide scoreboards in parallel
+    const [leagueRes, allRes] = await Promise.all([
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard`).catch(() => null),
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard`).catch(() => null),
+    ]);
 
-    const data = await res.json();
-    const events = data?.events || [];
+    const leagueData = leagueRes && leagueRes.ok ? await leagueRes.json().catch(() => null) : null;
+    const allData = allRes && allRes.ok ? await allRes.json().catch(() => null) : null;
 
-    let liveCount = 0;
-    for (const event of events) {
-      const statusType = event?.competitions?.[0]?.status?.type;
-      if (statusType?.state === "in") {
-        liveCount++;
-      }
-    }
+    const leagueLiveCount = (leagueData?.events || []).filter(isEventLive).length;
+    const allLiveCount = (allData?.events || []).filter(isEventLive).length;
 
-    if (liveCount > 0) {
-      chrome.action.setBadgeText({ text: liveCount > 1 ? `${liveCount}` : "LIVE" });
+    // Prioritize selected league count if live matches exist there; otherwise use worldwide count
+    const totalLive = leagueLiveCount > 0 ? leagueLiveCount : allLiveCount;
+
+    if (totalLive > 0) {
+      chrome.action.setBadgeText({ text: totalLive > 1 ? `${totalLive}` : "LIVE" });
       chrome.action.setBadgeBackgroundColor({ color: "#D8232A" });
-      chrome.action.setTitle({ title: `Kuas — ${liveCount} match${liveCount > 1 ? "es" : ""} currently LIVE!` });
+      if (chrome.action.setBadgeTextColor) {
+        chrome.action.setBadgeTextColor({ color: "#FFFFFF" });
+      }
+      const scopeLabel = leagueLiveCount > 0 ? "in active competition" : "worldwide";
+      chrome.action.setTitle({
+        title: `Kuas — ${totalLive} match${totalLive > 1 ? "es" : ""} currently LIVE (${scopeLabel})!`,
+      });
     } else {
       chrome.action.setBadgeText({ text: "" });
       chrome.action.setTitle({ title: "Kuas — Football Matchday Hub" });
@@ -51,11 +63,22 @@ async function syncPopupDestination() {
   }
 }
 
+function setupAlarm() {
+  chrome.alarms.get(ALARM_NAME, (alarm) => {
+    if (!alarm) {
+      chrome.alarms.create(ALARM_NAME, {
+        delayInMinutes: 0.1,
+        periodInMinutes: CHECK_INTERVAL_MINUTES,
+      });
+    }
+  });
+}
+
 // Lifecycle events
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Kuas Football Extension installed successfully.");
   chrome.alarms.create(ALARM_NAME, {
-    delayInMinutes: 0.2,
+    delayInMinutes: 0.1,
     periodInMinutes: CHECK_INTERVAL_MINUTES,
   });
   checkLiveMatches();
@@ -64,6 +87,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  setupAlarm();
   checkLiveMatches();
   syncPopupDestination();
   Storage.pruneExpired().catch(() => {});
@@ -86,4 +110,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
   }
 });
+
+// Immediate execution on service worker startup / reload
+setupAlarm();
+checkLiveMatches();
+syncPopupDestination();
+
 
