@@ -27,11 +27,18 @@
 <body>
   <header class="masthead">
     <div class="masthead-top">
-      <img class="masthead-logo" src="icons/icon128.png" alt="Kuas Logo">
-      <div class="masthead-titles">
-        <h1 id="main_page" class="brand-title">KUAS</h1>
-        <div class="brand-sub">MATCHDAY EDITION • SOCCER ARCHIVE</div>
+      <div class="masthead-brand-group">
+        <img class="masthead-logo" src="icons/icon128.png" alt="Kuas Logo">
+        <div class="masthead-titles">
+          <h1 id="main_page" class="brand-title">KUAS</h1>
+          <div class="brand-sub">MATCHDAY EDITION • SOCCER ARCHIVE</div>
+        </div>
       </div>
+      <button id="masthead-live-btn" class="masthead-live-btn" title="View live matches worldwide" role="button" tabindex="0">
+        <span class="live-indicator-dot"></span>
+        <span class="live-label">LIVE</span>
+        <span id="masthead-live-count" class="masthead-live-count" style="display:none;">0</span>
+      </button>
     </div>
 
     <div class="search-section">

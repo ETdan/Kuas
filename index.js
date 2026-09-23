@@ -1,33 +1,96 @@
 /**
  * index.js - Popup entry point.
  * Fetches all available soccer leagues from ESPN, renders the league cards,
- * and handles search/category filtering.
+ * handles search/category filtering, and provides one-click access to
+ * the Worldwide Live Matchday Desk.
  */
 import { Storage } from "./storage.js";
 import { escapeHTML, ensureHttps } from "./utils.js";
-import { getLeagues } from "./api.js";
+import { getLeagues, getLiveScoreboard } from "./api.js";
 
 const leaguesContainer = document.getElementById("leagues");
 const searchInput = document.getElementById("league-search");
 const clearSearchBtn = document.getElementById("clear-search");
 const filterChips = document.getElementById("filter-chips");
 const leagueCountBadge = document.getElementById("league-count");
+const mastheadLiveBtn = document.getElementById("masthead-live-btn");
+const mastheadLiveCount = document.getElementById("masthead-live-count");
 
 if (!leaguesContainer) throw new Error("Missing #leagues container");
 
-// Show initial animated loader
-leaguesContainer.innerHTML = `
-  <div class="info-msg">
-    <div class="loader"></div>
-    <span>SCOUTING COMPETITIONS…</span>
-  </div>
-`;
+// Show instant skeleton shimmer grid to prevent layout shifts and div resizing glitch
+function renderSkeletonGridHTML(count = 9) {
+  return Array.from({ length: count }, () => `
+    <div class="skeleton-card">
+      <div class="skeleton-logo"></div>
+      <div class="skeleton-name"></div>
+      <div class="skeleton-pill"></div>
+    </div>
+  `).join("");
+}
+
+leaguesContainer.innerHTML = renderSkeletonGridHTML(9);
 
 let allLeagues = [];
 let activeFilter = "all";
 let searchQuery = "";
 
-// Categorization helper
+// ---------------------------------------------------------------------------
+// Monogram & Fallback Badge Generator
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a clean 2-3 character monogram for a competition name.
+ * e.g. "UEFA Champions League" -> "UCL"
+ * "FIFA Women's Champions Cup" -> "FW"
+ * "English Premier League" -> "EPL"
+ */
+function getLeagueMonogram(name, slug = "") {
+  const s = (slug || "").toLowerCase();
+  if (s.includes("uefa.champions")) return "UCL";
+  if (s.includes("uefa.europa")) return "UEL";
+  if (s.includes("uefa.conference")) return "UECL";
+  if (s.includes("eng.1")) return "EPL";
+  if (s.includes("esp.1")) return "LAL";
+  if (s.includes("ita.1")) return "SER";
+  if (s.includes("ger.1")) return "BUN";
+  if (s.includes("fra.1")) return "L1";
+  if (s.includes("usa.1")) return "MLS";
+  if (s.includes("mex.1")) return "LMX";
+  if (s.includes("bra.1")) return "BRA";
+  if (s.includes("arg.1")) return "ARG";
+
+  if (s.includes("fifa")) {
+    const parts = (name || "").replace(/[^a-zA-Z\s]/g, "").split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return "FIFA";
+  }
+
+  // Acronym from major words
+  const words = (name || "")
+    .replace(/[^a-zA-Z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter((w) => !["of", "the", "and", "de", "la", "le", "cup", "league"].includes(w.toLowerCase()));
+
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  } else if (words.length === 1 && words[0].length >= 2) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return ((name || "FB").slice(0, 2)).toUpperCase();
+}
+
+function renderMonogramHTML(name, slug = "") {
+  const monogram = escapeHTML(getLeagueMonogram(name, slug));
+  return `<div class="league-monogram-badge" title="${escapeHTML(name)}">${monogram}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Categorization Helper
+// ---------------------------------------------------------------------------
 function matchCategory(league, filter) {
   if (filter === "all") return true;
   const slug = (league.slug || "").toLowerCase();
@@ -76,20 +139,25 @@ function getLeagueSubLabel(slug) {
 }
 
 function renderLeagueCardHTML(league) {
-  const logoUrl =
-    league.logos && league.logos.length > 0
-      ? ensureHttps(league.logos[0].href)
-      : "icons/icon128.png";
+  const rawLogo = league.logos && league.logos.length > 0 ? league.logos[0].href : null;
+  const logoUrl = rawLogo ? ensureHttps(rawLogo) : null;
   const name = escapeHTML(league.name || "League");
   const slug = escapeHTML(league.slug || "");
   const region = getLeagueSubLabel(league.slug || "");
+  const monogramHTML = renderMonogramHTML(league.name || "League", league.slug || "");
+
+  // Safe monogram injection on image error
+  const escapedMonogram = monogramHTML.replace(/"/g, "&quot;").replace(/'/g, "\\'");
+  const logoContent = logoUrl
+    ? `<img class="league-image" src="${logoUrl}" alt="${name}" fetchpriority="high"
+            onerror="this.parentElement.innerHTML='${escapedMonogram}';">`
+    : monogramHTML;
 
   return `
     <div class="league-container ${slug}" data-slug="${slug}" role="button" tabindex="0"
          aria-label="${name}">
       <div class="league-logo-frame">
-        <img class="league-image" src="${logoUrl}" alt="${name}" loading="lazy"
-             onerror="this.onerror=null;this.src='icons/icon128.png';">
+        ${logoContent}
       </div>
       <span class="league-name" title="${name}">${name}</span>
       <span class="league-badge-pill">${region}</span>
@@ -124,7 +192,9 @@ function applyFiltersAndRender() {
   leaguesContainer.innerHTML = filtered.map(renderLeagueCardHTML).join("");
 }
 
-// Search interactions
+// ---------------------------------------------------------------------------
+// Search & Filter Interactions
+// ---------------------------------------------------------------------------
 searchInput?.addEventListener("input", (e) => {
   searchQuery = e.target.value;
   if (clearSearchBtn) {
@@ -141,7 +211,6 @@ clearSearchBtn?.addEventListener("click", () => {
   searchInput?.focus();
 });
 
-// Category chip filter interactions
 filterChips?.addEventListener("click", (e) => {
   const chip = e.target.closest(".chip");
   if (!chip) return;
@@ -183,7 +252,51 @@ leaguesContainer.addEventListener("keydown", (e) => {
   }
 });
 
-// Load leagues from ESPN API
+// ---------------------------------------------------------------------------
+// Masthead LIVE Matchday Desk Access & Real-Time Counter
+// ---------------------------------------------------------------------------
+async function checkLiveMatches() {
+  try {
+    const data = await getLiveScoreboard("all");
+    const events = data?.events || [];
+    const isLive = (e) =>
+      e?.status?.type?.state === "in" || e?.competitions?.[0]?.status?.type?.state === "in";
+    const liveCount = events.filter(isLive).length;
+
+    if (mastheadLiveCount) {
+      if (liveCount > 0) {
+        mastheadLiveCount.textContent = String(liveCount);
+        mastheadLiveCount.style.display = "inline-block";
+        mastheadLiveBtn?.setAttribute("title", `${liveCount} live matches in-play worldwide — click to view`);
+      } else {
+        mastheadLiveCount.style.display = "none";
+        mastheadLiveBtn?.setAttribute("title", "View real-time Live Matchday Desk");
+      }
+    }
+  } catch (_e) {}
+}
+
+mastheadLiveBtn?.addEventListener("click", async () => {
+  await Promise.all([
+    Storage.set("lastLocation", "league"),
+    Storage.set("lastTab", "live"),
+    Storage.set("liveInitialScope", "all"),
+    Storage.set("leagueSlug", "all"),
+  ]);
+  if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
+    chrome.action.setPopup({ popup: "league/league.html" });
+  }
+  window.location.href = "league/league.html";
+});
+
+// Check live matches on startup and refresh every 30s
+checkLiveMatches();
+const livePollInterval = setInterval(checkLiveMatches, 30000);
+window.addEventListener("unload", () => clearInterval(livePollInterval));
+
+// ---------------------------------------------------------------------------
+// Initial Leagues Load
+// ---------------------------------------------------------------------------
 getLeagues().then((leagues) => {
   if (!leagues || leagues.length === 0) {
     leaguesContainer.innerHTML = `<div class="error-msg">Failed to load leagues from server.</div>`;

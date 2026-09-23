@@ -79,6 +79,14 @@ async function fetchCached(url, ttlMs = TTL.STANDINGS) {
 
 /** Fetch the full list of ESPN soccer leagues with 24h cache. */
 export async function getLeagues() {
+  const cacheKey = "api-cache:v2:all-leagues-resolved";
+  try {
+    const cached = await Storage.get(cacheKey);
+    if (cached && cached.data?.length && cached.expiresAt && Date.now() < cached.expiresAt) {
+      return cached.data;
+    }
+  } catch (_e) {}
+
   const data = await fetchCached(
     "https://sports.core.api.espn.com/v2/sports/soccer/leagues",
     TTL.LEAGUES
@@ -87,7 +95,14 @@ export async function getLeagues() {
   const items = await Promise.all(
     data.items.map((i) => fetchCached(i.$ref, TTL.LEAGUES))
   );
-  return items.filter(Boolean);
+  const result = items.filter(Boolean);
+  if (result.length > 0) {
+    Storage.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + TTL.LEAGUES,
+    }).catch(() => {});
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ import { renderMatchCardHTML, normalizeEspnEvent } from "../components/match_car
 
 const REFRESH_INTERVAL_MS = 30000; // 30 seconds auto-refresh
 
-function renderShellHTML(leagueName) {
+function renderShellHTML(leagueName, initialScope = "league") {
   return `
     <div class="live-view-wrap">
       <!-- Top Live Desk Header -->
@@ -30,10 +30,10 @@ function renderShellHTML(leagueName) {
         </div>
 
         <div class="live-scope-chips" id="liveScopeChips">
-          <button class="live-chip active" data-scope="league">
+          <button class="live-chip ${initialScope === "league" ? "active" : ""}" data-scope="league">
             <span class="chip-dot">●</span> CURRENT LEAGUE (<span id="leagueLiveCount">0</span>)
           </button>
-          <button class="live-chip" data-scope="all">
+          <button class="live-chip ${initialScope === "all" ? "active" : ""}" data-scope="all">
             <span class="chip-globe">🌍</span> WORLDWIDE (<span id="allLiveCount">0</span>)
           </button>
         </div>
@@ -51,9 +51,12 @@ function renderShellHTML(leagueName) {
 }
 
 export async function init(container, navigate) {
-  const slug = await Storage.get("leagueSlug") || "eng.1";
+  const slug = (await Storage.get("leagueSlug")) || "eng.1";
+  const initialScopeStored = await Storage.get("liveInitialScope");
+  const initialScope = initialScopeStored === "all" ? "all" : "league";
+  await Storage.remove("liveInitialScope");
 
-  container.innerHTML = renderShellHTML(slug.toUpperCase());
+  container.innerHTML = renderShellHTML(slug.toUpperCase(), initialScope);
 
   const containerEl = container.querySelector("#liveMatchesContainer");
   const refreshBtn = container.querySelector("#liveRefreshBtn");
@@ -61,7 +64,7 @@ export async function init(container, navigate) {
   const leagueCountEl = container.querySelector("#leagueLiveCount");
   const allCountEl = container.querySelector("#allLiveCount");
 
-  let currentScope = "league"; // 'league' | 'all'
+  let currentScope = initialScope; // 'league' | 'all'
   let refreshTimerId = null;
 
   async function loadLiveFeed(isManualRefresh = false) {

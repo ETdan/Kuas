@@ -86,8 +86,88 @@ body {
 .masthead-top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+}
+
+.masthead-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Masthead Dynamic Live Matchday Desk Pill */
+.masthead-live-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(216, 35, 42, 0.18);
+  border: 1.5px solid var(--art-red);
+  border-radius: 999px;
+  padding: 5px 12px 5px 10px;
+  color: var(--art-cream);
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(216, 35, 42, 0.3);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  outline: none;
+  text-decoration: none;
+}
+
+.masthead-live-btn:hover {
+  background: var(--art-red);
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 4px 16px var(--art-red-glow);
+}
+
+.masthead-live-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.live-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #EF4444;
+  box-shadow: 0 0 6px #EF4444;
+  display: inline-block;
+  animation: liveDotPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes liveDotPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 6px #EF4444;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.65;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+  }
+}
+
+.live-label {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  color: var(--art-cream);
+  line-height: 1;
+}
+
+.masthead-live-count {
+  background: var(--art-yellow);
+  color: var(--art-navy-dark);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .masthead-logo {
@@ -300,10 +380,11 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 14px 10px 12px;
+  gap: 8px;
+  padding: 12px 10px;
   height: 152px;
   max-height: 152px;
+  min-height: 152px;
   box-sizing: border-box;
   background: var(--art-surface);
   border-radius: 14px;
@@ -348,10 +429,15 @@ main {
   transform: translateY(0);
 }
 
-/* Larger, prominent logo pedestal */
+/* Larger, prominent logo pedestal with locked dimensions & overflow protection */
 .league-logo-frame {
   width: 60px;
   height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  max-width: 60px;
+  max-height: 60px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: radial-gradient(circle, #FAF6EE 35%, #E2E8F0 100%);
   border: 2px solid var(--art-border);
@@ -361,6 +447,9 @@ main {
   padding: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.18s ease, border-color 0.18s ease;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .league-container:hover .league-logo-frame {
@@ -369,9 +458,33 @@ main {
 }
 
 .league-image {
+  width: 44px;
+  height: 44px;
+  max-width: 44px;
+  max-height: 44px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  display: block;
+}
+
+/* Stylized Monogram / Initials Fallback Badge */
+.league-monogram-badge {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0A1120 0%, #152037 55%, #1F3050 100%);
+  border: 1.5px solid var(--art-border-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--art-yellow);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  user-select: none;
+  box-shadow: inset 0 0 10px rgba(255, 209, 0, 0.25);
+  box-sizing: border-box;
 }
 
 .league-name {
@@ -402,6 +515,76 @@ main {
 .league-container:hover .league-badge-pill {
   background: rgba(255, 209, 0, 0.2);
   color: var(--art-yellow);
+}
+
+/* ---- Skeleton Shimmer Loading Cards ---- */
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 10px;
+  height: 152px;
+  max-height: 152px;
+  min-height: 152px;
+  box-sizing: border-box;
+  background: var(--art-surface);
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-logo {
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.04);
+}
+
+.skeleton-name {
+  width: 80%;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.skeleton-pill {
+  width: 50px;
+  height: 16px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.skeleton-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 209, 0, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeletonShimmer 1.5s infinite;
+}
+
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* ============================================================
