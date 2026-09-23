@@ -61,10 +61,20 @@ const VIEW_CSS = {
 const NAV_PAGES = new Set(["matches", "live", "standing", "club"]);
 
 let currentPage = null;
-let cssLink = null;
+const loadedStyles = new Set();
 const navHistory = [];
 
 const content = document.getElementById("content");
+
+function ensureViewStylesheet(page) {
+  const href = VIEW_CSS[page];
+  if (!href || loadedStyles.has(href)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+  loadedStyles.add(href);
+}
 
 /** Load and activate a view by name, with back-navigation history. */
 async function navigate(page, { isBack = false } = {}) {
@@ -99,27 +109,13 @@ async function navigate(page, { isBack = false } = {}) {
     link.classList.toggle("active", link.getAttribute("data-page") === page);
   });
 
-  // Swap stylesheet
-  cssLink?.remove();
-  if (VIEW_CSS[page]) {
-    cssLink = document.createElement("link");
-    cssLink.rel = "stylesheet";
-    cssLink.href = VIEW_CSS[page];
-    document.head.appendChild(cssLink);
-  }
-
-  // Show loading placeholder
-  content.innerHTML = `
-    <div class="view-loading">
-      <div class="loader"></div>
-      <span>MATCHDAY DESK LOADING…</span>
-    </div>
-  `;
+  // Ensure stylesheet is loaded without removing existing ones
+  ensureViewStylesheet(page);
 
   // Lazy-load the view module
   const mod = await VIEW_LOADERS[page]();
 
-  // Let the view render itself
+  // Let the view render itself directly into content
   await mod.init(content, navigate);
 }
 

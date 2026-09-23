@@ -5,17 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kuas — Football Matchday Hub</title>
-  <!-- Fast restore: if user was viewing a league, restore directly to league hub -->
-  <script type="module">
-    try {
-      if (typeof chrome !== "undefined" && chrome.storage?.local) {
-        const stored = await chrome.storage.local.get(["lastLocation", "leagueSlug"]);
-        if (stored?.lastLocation === "league" && stored?.leagueSlug) {
-          window.location.replace("league/league.html");
-        }
-      }
-    } catch (_e) {}
-  </script>
+  <style>
+    html, body {
+      background-color: #070B14 !important;
+      color: #FAF6EE;
+    }
+  </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link

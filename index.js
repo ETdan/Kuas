@@ -16,21 +16,6 @@ const leagueCountBadge = document.getElementById("league-count");
 const mastheadLiveBtn = document.getElementById("masthead-live-btn");
 const mastheadLiveCount = document.getElementById("masthead-live-count");
 
-if (!leaguesContainer) throw new Error("Missing #leagues container");
-
-// Show instant skeleton shimmer grid to prevent layout shifts and div resizing glitch
-function renderSkeletonGridHTML(count = 9) {
-  return Array.from({ length: count }, () => `
-    <div class="skeleton-card">
-      <div class="skeleton-logo"></div>
-      <div class="skeleton-name"></div>
-      <div class="skeleton-pill"></div>
-    </div>
-  `).join("");
-}
-
-leaguesContainer.innerHTML = renderSkeletonGridHTML(9);
-
 let allLeagues = [];
 let activeFilter = "all";
 let searchQuery = "";
@@ -146,11 +131,8 @@ function renderLeagueCardHTML(league) {
   const region = getLeagueSubLabel(league.slug || "");
   const monogramHTML = renderMonogramHTML(league.name || "League", league.slug || "");
 
-  // Safe monogram injection on image error
-  const escapedMonogram = monogramHTML.replace(/"/g, "&quot;").replace(/'/g, "\\'");
   const logoContent = logoUrl
-    ? `<img class="league-image" src="${logoUrl}" alt="${name}" fetchpriority="high"
-            onerror="this.parentElement.innerHTML='${escapedMonogram}';">`
+    ? `<img class="league-image" src="${logoUrl}" alt="${name}" fetchpriority="high">`
     : monogramHTML;
 
   return `
@@ -193,64 +175,96 @@ function applyFiltersAndRender() {
 }
 
 // ---------------------------------------------------------------------------
-// Search & Filter Interactions
+// Search & Filter Interactions & Event Listeners
 // ---------------------------------------------------------------------------
-searchInput?.addEventListener("input", (e) => {
-  searchQuery = e.target.value;
-  if (clearSearchBtn) {
-    clearSearchBtn.style.display = searchQuery ? "block" : "none";
-  }
-  applyFiltersAndRender();
-});
+function setupEventListeners() {
+  searchInput?.addEventListener("input", (e) => {
+    searchQuery = e.target.value;
+    if (clearSearchBtn) {
+      clearSearchBtn.style.display = searchQuery ? "block" : "none";
+    }
+    applyFiltersAndRender();
+  });
 
-clearSearchBtn?.addEventListener("click", () => {
-  if (searchInput) searchInput.value = "";
-  searchQuery = "";
-  if (clearSearchBtn) clearSearchBtn.style.display = "none";
-  applyFiltersAndRender();
-  searchInput?.focus();
-});
+  clearSearchBtn?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    searchQuery = "";
+    if (clearSearchBtn) clearSearchBtn.style.display = "none";
+    applyFiltersAndRender();
+    searchInput?.focus();
+  });
 
-filterChips?.addEventListener("click", (e) => {
-  const chip = e.target.closest(".chip");
-  if (!chip) return;
-  filterChips.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-  chip.classList.add("active");
-  activeFilter = chip.getAttribute("data-filter") || "all";
-  applyFiltersAndRender();
-});
+  filterChips?.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    filterChips.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    activeFilter = chip.getAttribute("data-filter") || "all";
+    applyFiltersAndRender();
+  });
 
-// Event delegation — league card click
-leaguesContainer.addEventListener("click", async (e) => {
-  const card = e.target.closest(".league-container");
-  if (!card) return;
-  const slug = card.getAttribute("data-slug");
-  if (slug) {
+  // Event delegation — league card click
+  leaguesContainer.addEventListener("click", async (e) => {
+    const card = e.target.closest(".league-container");
+    if (!card) return;
+    const slug = card.getAttribute("data-slug");
+    if (slug) {
+      await Promise.all([
+        Storage.set("leagueSlug", slug),
+        Storage.set("lastLocation", "league"),
+        Storage.set("lastTab", "matches"),
+        Storage.remove("teamId"),
+        Storage.remove("clubSlug"),
+        Storage.remove("clubName"),
+        Storage.remove("matchEventId"),
+        Storage.remove("matchName"),
+        Storage.remove("matchInitialTab"),
+      ]);
+      if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
+        chrome.action.setPopup({ popup: "league/league.html" });
+      }
+      window.location.href = "league/league.html";
+    }
+  });
+
+  // Keyboard accessibility
+  leaguesContainer.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.target.closest(".league-container")?.click();
+    }
+  });
+
+  // Safe monogram fallback if logo image fails to load (CSP-compliant capture listener)
+  leaguesContainer.addEventListener(
+    "error",
+    (e) => {
+      if (e.target && e.target.classList.contains("league-image")) {
+        const card = e.target.closest(".league-container");
+        const name = card?.getAttribute("aria-label") || "League";
+        const slug = card?.getAttribute("data-slug") || "";
+        const frame = e.target.parentElement;
+        if (frame) {
+          frame.innerHTML = renderMonogramHTML(name, slug);
+        }
+      }
+    },
+    true
+  );
+
+  mastheadLiveBtn?.addEventListener("click", async () => {
     await Promise.all([
-      Storage.set("leagueSlug", slug),
       Storage.set("lastLocation", "league"),
-      Storage.set("lastTab", "matches"),
-      Storage.remove("teamId"),
-      Storage.remove("clubSlug"),
-      Storage.remove("clubName"),
-      Storage.remove("matchEventId"),
-      Storage.remove("matchName"),
-      Storage.remove("matchInitialTab"),
+      Storage.set("lastTab", "live"),
+      Storage.set("liveInitialScope", "all"),
+      Storage.set("leagueSlug", "all"),
     ]);
     if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
       chrome.action.setPopup({ popup: "league/league.html" });
     }
     window.location.href = "league/league.html";
-  }
-});
-
-// Keyboard accessibility
-leaguesContainer.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    e.target.closest(".league-container")?.click();
-  }
-});
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Masthead LIVE Matchday Desk Access & Real-Time Counter
@@ -276,32 +290,43 @@ async function checkLiveMatches() {
   } catch (_e) {}
 }
 
-mastheadLiveBtn?.addEventListener("click", async () => {
-  await Promise.all([
-    Storage.set("lastLocation", "league"),
-    Storage.set("lastTab", "live"),
-    Storage.set("liveInitialScope", "all"),
-    Storage.set("leagueSlug", "all"),
-  ]);
-  if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
-    chrome.action.setPopup({ popup: "league/league.html" });
-  }
-  window.location.href = "league/league.html";
-});
-
-// Check live matches on startup and refresh every 30s
-checkLiveMatches();
-const livePollInterval = setInterval(checkLiveMatches, 30000);
-window.addEventListener("unload", () => clearInterval(livePollInterval));
-
 // ---------------------------------------------------------------------------
-// Initial Leagues Load
+// Application Entry Point
 // ---------------------------------------------------------------------------
-getLeagues().then((leagues) => {
-  if (!leagues || leagues.length === 0) {
+async function start() {
+  // Fast restore: if user was viewing a league, restore directly to league hub
+  try {
+    if (typeof chrome !== "undefined" && chrome.storage?.local) {
+      const stored = await chrome.storage.local.get(["lastLocation", "leagueSlug"]);
+      if (stored?.lastLocation === "league" && stored?.leagueSlug) {
+        window.location.replace("league/league.html");
+        return;
+      }
+    }
+  } catch (_e) {}
+
+  if (!leaguesContainer) return;
+
+  // Setup interactions and listeners
+  setupEventListeners();
+
+  // Check live matches on startup and refresh every 30s
+  checkLiveMatches();
+  const livePollInterval = setInterval(checkLiveMatches, 30000);
+  window.addEventListener("unload", () => clearInterval(livePollInterval));
+
+  // Initial Leagues Load
+  try {
+    const leagues = await getLeagues();
+    if (!leagues || leagues.length === 0) {
+      leaguesContainer.innerHTML = `<div class="error-msg">Failed to load leagues from server.</div>`;
+      return;
+    }
+    allLeagues = leagues;
+    applyFiltersAndRender();
+  } catch (_err) {
     leaguesContainer.innerHTML = `<div class="error-msg">Failed to load leagues from server.</div>`;
-    return;
   }
-  allLeagues = leagues;
-  applyFiltersAndRender();
-});
+}
+
+start();
