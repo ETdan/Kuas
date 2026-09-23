@@ -81,6 +81,29 @@ export function normalizeEspnEvent(event, options = {}) {
   };
 }
 
+function getTeamAbbrev(name) {
+  if (!name) return "FC";
+  const clean = name.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length >= 3) {
+    return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+  }
+  if (words.length === 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return clean.slice(0, 3).toUpperCase();
+}
+
+function isValidLogoUrl(url) {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    !lower.includes("default-team-logo") &&
+    !lower.includes("default-league-logo") &&
+    !lower.includes("missing")
+  );
+}
+
 /**
  * Render a standardized Matchday scoreboard match card.
  * @param {object} d Match data object
@@ -88,12 +111,15 @@ export function normalizeEspnEvent(event, options = {}) {
  * @returns {string} HTML string
  */
 export function renderMatchCardHTML(d, options = {}) {
-  const homeLogo = d.homeLogo
+  const hasHomeLogo = isValidLogoUrl(d.homeLogo);
+  const hasAwayLogo = isValidLogoUrl(d.awayLogo);
+
+  const homeLogo = hasHomeLogo
     ? `<img class="team-logo" src="${escapeHTML(d.homeLogo)}" alt="${escapeHTML(d.homeName)}" loading="lazy">`
-    : `<div class="team-logo-placeholder">⚽</div>`;
-  const awayLogo = d.awayLogo
+    : `<div class="team-logo-placeholder" title="${escapeHTML(d.homeName)}">${escapeHTML(getTeamAbbrev(d.homeName))}</div>`;
+  const awayLogo = hasAwayLogo
     ? `<img class="team-logo" src="${escapeHTML(d.awayLogo)}" alt="${escapeHTML(d.awayName)}" loading="lazy">`
-    : `<div class="team-logo-placeholder">⚽</div>`;
+    : `<div class="team-logo-placeholder" title="${escapeHTML(d.awayName)}">${escapeHTML(getTeamAbbrev(d.awayName))}</div>`;
 
   const isLive = d.state === "in";
   const isFinished = d.state === "post";

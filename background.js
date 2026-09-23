@@ -53,7 +53,9 @@ async function checkLiveMatches() {
 async function syncPopupDestination() {
   try {
     const stored = await chrome.storage.local.get(["lastLocation", "leagueSlug"]);
-    if (stored?.lastLocation === "league" && stored?.leagueSlug) {
+    if (stored?.lastLocation === "worldwide") {
+      chrome.action.setPopup({ popup: "worldwide/worldwide.html" });
+    } else if (stored?.lastLocation === "league" && stored?.leagueSlug) {
       chrome.action.setPopup({ popup: "league/league.html" });
     } else {
       chrome.action.setPopup({ popup: "index.html" });

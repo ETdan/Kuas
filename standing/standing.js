@@ -88,12 +88,32 @@ function renderStreakBadge(streak) {
   return `<span class="streak-pill streak-draw">${escapeHTML(s)}</span>`;
 }
 
+function isValidLogoUrl(url) {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    !lower.includes("default-team-logo") &&
+    !lower.includes("default-league-logo") &&
+    !lower.includes("missing")
+  );
+}
+
+function getTeamAbbrev(name) {
+  if (!name) return "FC";
+  const clean = name.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length >= 3) return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+  if (words.length === 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return clean.slice(0, 3).toUpperCase();
+}
+
 function renderRowHTML(row, index, totalRows) {
   const s = row.stats;
   const rank = Number(row.rank) || (index + 1);
-  const logoHTML = row.logo
+  const hasValidLogo = isValidLogoUrl(row.logo);
+  const logoHTML = hasValidLogo
     ? `<img class="team-logo" src="${escapeHTML(row.logo)}" alt="${escapeHTML(row.teamName)}" loading="lazy">`
-    : `<span class="team-logo-placeholder">⚽</span>`;
+    : `<span class="team-logo-placeholder" title="${escapeHTML(row.teamName)}">${escapeHTML(getTeamAbbrev(row.teamName))}</span>`;
 
   let zoneClass = "";
   if (rank <= 4) zoneClass = "row-ucl";

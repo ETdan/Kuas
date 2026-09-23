@@ -32,8 +32,11 @@ let searchQuery = "";
  */
 function getLeagueMonogram(name, slug = "") {
   const s = (slug || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+
+  // Explicit known league/tournament acronyms
   if (s.includes("uefa.champions")) return "UCL";
-  if (s.includes("uefa.europa")) return "UEL";
+  if (s.includes("uefa.europa") && !s.includes("conference")) return "UEL";
   if (s.includes("uefa.conference")) return "UECL";
   if (s.includes("eng.1")) return "EPL";
   if (s.includes("esp.1")) return "LAL";
@@ -44,6 +47,17 @@ function getLeagueMonogram(name, slug = "") {
   if (s.includes("mex.1")) return "LMX";
   if (s.includes("bra.1")) return "BRA";
   if (s.includes("arg.1")) return "ARG";
+  if (s.includes("por.1")) return "POR";
+  if (s.includes("ned.1")) return "ERE";
+  if (s.includes("eng.charity") || n.includes("community shield")) return "CS";
+
+  // FIFA Women's competitions: "FW"
+  if (n.includes("women") || s.includes("women") || s.includes("wwc")) {
+    return "FW";
+  }
+
+  // FIFA World Cup
+  if (s.includes("fifa.world") || (n.includes("world cup") && !n.includes("club"))) return "FWC";
 
   if (s.includes("fifa")) {
     const parts = (name || "").replace(/[^a-zA-Z\s]/g, "").split(/\s+/).filter(Boolean);
@@ -53,16 +67,18 @@ function getLeagueMonogram(name, slug = "") {
     return "FIFA";
   }
 
-  // Acronym from major words
+  // Acronym from major words, stripping boilerplate words
   const words = (name || "")
     .replace(/[^a-zA-Z0-9\s]/g, "")
     .split(/\s+/)
     .filter((w) => !["of", "the", "and", "de", "la", "le", "cup", "league"].includes(w.toLowerCase()));
 
-  if (words.length >= 2) {
+  if (words.length >= 3) {
+    return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+  } else if (words.length === 2) {
     return (words[0][0] + words[1][0]).toUpperCase();
   } else if (words.length === 1 && words[0].length >= 2) {
-    return words[0].slice(0, 2).toUpperCase();
+    return words[0].slice(0, 3).toUpperCase();
   }
 
   return ((name || "FB").slice(0, 2)).toUpperCase();
@@ -71,6 +87,17 @@ function getLeagueMonogram(name, slug = "") {
 function renderMonogramHTML(name, slug = "") {
   const monogram = escapeHTML(getLeagueMonogram(name, slug));
   return `<div class="league-monogram-badge" title="${escapeHTML(name)}">${monogram}</div>`;
+}
+
+function isGenericOrMissingLogo(url) {
+  if (!url) return true;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("default-team-logo") ||
+    lower.includes("default-league-logo") ||
+    lower.includes("missing") ||
+    lower.includes("placeholder")
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -131,7 +158,9 @@ function renderLeagueCardHTML(league) {
   const region = getLeagueSubLabel(league.slug || "");
   const monogramHTML = renderMonogramHTML(league.name || "League", league.slug || "");
 
-  const logoContent = logoUrl
+  const hasValidLogo = logoUrl && !isGenericOrMissingLogo(logoUrl);
+
+  const logoContent = hasValidLogo
     ? `<img class="league-image" src="${logoUrl}" alt="${name}" fetchpriority="high">`
     : monogramHTML;
 
@@ -254,20 +283,25 @@ function setupEventListeners() {
 
   mastheadLiveBtn?.addEventListener("click", async () => {
     await Promise.all([
-      Storage.set("lastLocation", "league"),
-      Storage.set("lastTab", "live"),
-      Storage.set("liveInitialScope", "all"),
+      Storage.set("lastLocation", "worldwide"),
+      Storage.set("lastTab", "matches"),
       Storage.set("leagueSlug", "all"),
+      Storage.remove("teamId"),
+      Storage.remove("clubSlug"),
+      Storage.remove("clubName"),
+      Storage.remove("matchEventId"),
+      Storage.remove("matchName"),
+      Storage.remove("matchInitialTab"),
     ]);
     if (typeof chrome !== "undefined" && chrome.action?.setPopup) {
-      chrome.action.setPopup({ popup: "league/league.html" });
+      chrome.action.setPopup({ popup: "worldwide/worldwide.html" });
     }
-    window.location.href = "league/league.html";
+    window.location.href = "worldwide/worldwide.html";
   });
 }
 
 // ---------------------------------------------------------------------------
-// Masthead LIVE Matchday Desk Access & Real-Time Counter
+// Masthead MATCHES & LIVE Desk Access & Real-Time Counter
 // ---------------------------------------------------------------------------
 async function checkLiveMatches() {
   try {
@@ -276,15 +310,18 @@ async function checkLiveMatches() {
     const isLive = (e) =>
       e?.status?.type?.state === "in" || e?.competitions?.[0]?.status?.type?.state === "in";
     const liveCount = events.filter(isLive).length;
+    const liveDot = document.getElementById("masthead-live-dot");
 
     if (mastheadLiveCount) {
       if (liveCount > 0) {
         mastheadLiveCount.textContent = String(liveCount);
         mastheadLiveCount.style.display = "inline-block";
-        mastheadLiveBtn?.setAttribute("title", `${liveCount} live matches in-play worldwide — click to view`);
+        if (liveDot) liveDot.style.display = "inline-block";
+        mastheadLiveBtn?.setAttribute("title", `${liveCount} live match${liveCount > 1 ? "es" : ""} in-play worldwide — click to view`);
       } else {
         mastheadLiveCount.style.display = "none";
-        mastheadLiveBtn?.setAttribute("title", "View real-time Live Matchday Desk");
+        if (liveDot) liveDot.style.display = "none";
+        mastheadLiveBtn?.setAttribute("title", "View all matches and live scores worldwide");
       }
     }
   } catch (_e) {}
@@ -294,10 +331,14 @@ async function checkLiveMatches() {
 // Application Entry Point
 // ---------------------------------------------------------------------------
 async function start() {
-  // Fast restore: if user was viewing a league, restore directly to league hub
+  // Fast restore: if user was viewing worldwide desk or league, restore directly
   try {
     if (typeof chrome !== "undefined" && chrome.storage?.local) {
       const stored = await chrome.storage.local.get(["lastLocation", "leagueSlug"]);
+      if (stored?.lastLocation === "worldwide") {
+        window.location.replace("worldwide/worldwide.html");
+        return;
+      }
       if (stored?.lastLocation === "league" && stored?.leagueSlug) {
         window.location.replace("league/league.html");
         return;

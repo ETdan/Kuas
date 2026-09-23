@@ -7,13 +7,24 @@ import { Storage } from "../storage.js";
 import { escapeHTML, ensureHttps } from "../utils.js";
 import { getLeagueTeams } from "../api.js";
 
+function isValidLogoUrl(url) {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    !lower.includes("default-team-logo") &&
+    !lower.includes("default-league-logo") &&
+    !lower.includes("missing")
+  );
+}
+
 function renderTeamCardHTML(team) {
   const logoUrl  = team.logos?.length ? ensureHttps(team.logos[0].href) : "";
   const teamName = escapeHTML(team.displayName || team.name || "Team");
-  const abbrev   = escapeHTML(team.abbreviation || team.shortDisplayName || "FC");
-  const logoHTML = logoUrl
+  const abbrev   = escapeHTML(team.abbreviation || team.shortDisplayName || teamName.slice(0, 3).toUpperCase());
+  const hasValidLogo = isValidLogoUrl(logoUrl);
+  const logoHTML = hasValidLogo
     ? `<img class="club-logo" src="${logoUrl}" alt="${teamName}" loading="lazy">`
-    : `<span class="club-logo-fallback">🛡</span>`;
+    : `<div class="team-monogram-badge" title="${teamName}">${abbrev}</div>`;
 
   return `
     <div class="club" data-team-id="${escapeHTML(String(team.id))}" role="button" tabindex="0" aria-label="${teamName}">

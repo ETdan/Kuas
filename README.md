@@ -4,7 +4,7 @@
 [![License: ISC](https://img.shields.io/badge/License-ISC-green.svg)](https://opensource.org/licenses/ISC)
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4.svg?logo=googlechrome&logoColor=white)](https://chrome.google.com/webstore)
 
-**Kuas** is a fast, modern Chrome extension for football (soccer) fans. Track real-time scores, explore league tables, browse club rosters, and catch match video highlights across top global competitions — all from a single, lightweight browser popup.
+**Kuas** is a fast, modern Chrome extension for football fans. Track real-time scores, explore league tables, browse club rosters, and catch match video highlights across top global competitions — all from a single, lightweight browser popup.
 
 ---
 
@@ -106,7 +106,7 @@ zip -r Kuas-v1.0.0.zip . -x "*.git*" "package*.json" "node_modules/*"
 Use these exact, vetted entries when submitting Kuas to the Chrome Web Store:
 
 ### 1. Single Purpose Description
-> **Kuas is a football (soccer) matchday companion that allows fans to track real-time scores, league standings, club rosters, and curated match highlights across major football competitions from a single popup interface.**
+> **Kuas is a football matchday companion that allows fans to track real-time scores, league standings, club rosters, and curated match highlights across major football competitions from a single popup interface.**
 
 ### 2. Permission Justifications
 

@@ -97,6 +97,12 @@ body {
   gap: 12px;
 }
 
+.masthead-btn-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-block;
+}
+
 /* Masthead Dynamic Live Matchday Desk Pill */
 .masthead-live-btn {
   display: flex;

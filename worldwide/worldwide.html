@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kuas — Worldwide Matchday Desk</title>
+  <style>
+    html, body {
+      background-color: #070B14 !important;
+      color: #FAF6EE;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../league/league.css">
+</head>
+<body>
+  <header class="league-header">
+    <div class="header-top-bar">
+      <img class="league-header-logo" src="../icons/icon128.png" alt="Kuas Logo">
+      <div class="league-meta-info">
+        <span class="competition-tag">GLOBAL MATCHDAY</span>
+        <h1 class="league-title-text">WORLDWIDE DESK</h1>
+      </div>
+      <a href="#" class="nav-home-btn" id="home" title="Return to League Selection">
+        <span class="home-icon">‹</span>
+        <span class="home-label">LEAGUES</span>
+      </a>
+    </div>
+
+    <nav class="matchday-nav">
+      <a href="#" class="nav-link" data-page="matches">
+        <span class="nav-icon">⚽</span>
+        <span class="nav-text">MATCHES</span>
+      </a>
+      <a href="#" class="nav-link" data-page="live">
+        <span class="nav-icon">🔴</span>
+        <span class="nav-text">LIVE</span>
+        <span class="nav-live-pill" id="navLivePill" style="display:none;"></span>
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="content"></div>
+  </main>
+
+  <script type="module" src="worldwide.js"></script>
+</body>
+</html>
