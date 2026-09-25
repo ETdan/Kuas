@@ -956,6 +956,312 @@
 }
 
 /* ============================================================
+   Match Center: Tactical Pitch Formation View
+   ============================================================ */
+.lineups-view-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pitch-formation-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pitch-team-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--art-surface);
+  border: 1px solid var(--art-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.pitch-team-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pitch-team-crest {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.pitch-team-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pitch-team-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--art-cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pitch-team-sub {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--art-yellow);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pitch-stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 14px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
+
+.stat-badge-val {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--art-green);
+}
+
+.stat-badge-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--art-cream-muted);
+  text-transform: uppercase;
+}
+
+/* Pitch Board Container */
+.pitch-board {
+  position: relative;
+  width: 100%;
+  height: 590px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  user-select: none;
+}
+
+.pitch-markings {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Formation corner tags */
+.pitch-formation-tag {
+  position: absolute;
+  left: 10px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.70rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #FFFFFF;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.pitch-formation-tag.top-tag {
+  top: 10px;
+}
+
+.pitch-formation-tag.bottom-tag {
+  bottom: 10px;
+}
+
+/* Player Nodes on Pitch */
+.pitch-player-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  z-index: 3;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pitch-player-node:hover {
+  transform: translate(-50%, -50%) scale(1.15);
+  z-index: 10;
+}
+
+.pitch-player-avatar-wrap {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  background: #0A0F1D;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitch-avatar-circle {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #253350 40%, #0D1627 100%);
+}
+
+.pitch-player-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #141E33;
+}
+
+.pitch-player-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #253350 40%, #0D1627 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitch-fallback-avatar {
+  width: 22px;
+  height: 22px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.pitch-player-number {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--art-navy-dark, #0F172A);
+  border: 1.5px solid #FFFFFF;
+  color: #FFFFFF;
+  font-family: var(--font-body);
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 6px;
+  line-height: 1.15;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+  z-index: 4;
+  white-space: nowrap;
+}
+
+.pitch-player-event-badge {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.pitch-player-event-badge.captain {
+  top: -4px;
+  left: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 0.55rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitch-player-event-badge.goal {
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #10B981;
+  color: #FFFFFF;
+  font-size: 0.55rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitch-player-event-badge.card-yellow {
+  top: -2px;
+  right: -5px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: #EAB308;
+}
+
+.pitch-player-event-badge.card-red {
+  top: -2px;
+  right: -5px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: #DC2626;
+}
+
+.pitch-player-name {
+  font-family: var(--font-body);
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.lineup-roster-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.lineup-section-header {
+  padding-top: 8px;
+  border-top: 1px solid var(--art-border);
+}
+
+/* ============================================================
    Match Center: Lineups & Tactical Formations
    ============================================================ */
 .lineups-dual-container {

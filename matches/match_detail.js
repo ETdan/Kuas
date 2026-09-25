@@ -393,6 +393,370 @@ function renderRosterColumn(rosterObj, fallbackName, fallbackLogo) {
   `;
 }
 
+function getSideRank(p) {
+  const abbr = (p.position?.abbreviation || "").toUpperCase();
+  const name = (p.position?.name || p.position?.displayName || "").toLowerCase();
+  if (abbr.includes("L") || name.includes("left")) return 1;
+  if (abbr.includes("C") || name.includes("center") || name.includes("centre")) return 2;
+  if (abbr.includes("R") || name.includes("right")) return 3;
+  return 2;
+}
+
+function parseFormationLines(formationStr) {
+  if (!formationStr) return null;
+  const parts = formationStr.split(/[-–—]/).map((n) => parseInt(n.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
+  const sum = parts.reduce((a, b) => a + b, 0);
+  if (sum === 10) return parts;
+  return null;
+}
+
+function buildTeamLines(rosterObj) {
+  const rawRoster = rosterObj?.roster || [];
+  const starters = rawRoster.filter((p) => p.starter);
+  if (!starters.length) return null;
+
+  // Identify GK
+  let gkIndex = starters.findIndex((p) => {
+    const abbr = (p.position?.abbreviation || "").toUpperCase();
+    const name = (p.position?.name || p.position?.displayName || "").toLowerCase();
+    return abbr === "G" || abbr === "GK" || name.includes("goal") || String(p.formationPlace) === "1";
+  });
+  if (gkIndex < 0) gkIndex = 0;
+
+  const gk = starters[gkIndex];
+  const outfield = starters.filter((_, idx) => idx !== gkIndex);
+
+  // Categorize outfielders into DEF, MID, FWD
+  const defs = [];
+  const mids = [];
+  const fwds = [];
+
+  outfield.forEach((p) => {
+    const abbr = (p.position?.abbreviation || "").toUpperCase();
+    const name = (p.position?.displayName || p.position?.name || "").toLowerCase();
+    if (abbr.includes("B") || abbr.includes("D") || name.includes("def") || name.includes("back")) {
+      defs.push(p);
+    } else if (abbr.includes("F") || abbr.includes("W") || abbr.includes("S") || name.includes("forw") || name.includes("att") || name.includes("strik")) {
+      fwds.push(p);
+    } else {
+      mids.push(p);
+    }
+  });
+
+  // Sort each group left to right
+  defs.sort((a, b) => getSideRank(a) - getSideRank(b));
+  mids.sort((a, b) => getSideRank(a) - getSideRank(b));
+  fwds.sort((a, b) => getSideRank(a) - getSideRank(b));
+
+  const sortedOutfield = [...defs, ...mids, ...fwds];
+
+  const parsedParts = parseFormationLines(rosterObj?.formation);
+  let lines = [];
+  if (parsedParts) {
+    let offset = 0;
+    parsedParts.forEach((count) => {
+      lines.push(sortedOutfield.slice(offset, offset + count));
+      offset += count;
+    });
+  } else {
+    if (defs.length) lines.push(defs);
+    if (mids.length) lines.push(mids);
+    if (fwds.length) lines.push(fwds);
+    if (!lines.length) {
+      lines = [
+        sortedOutfield.slice(0, 4),
+        sortedOutfield.slice(4, 8),
+        sortedOutfield.slice(8, 10),
+      ];
+    }
+  }
+
+  const formationName = rosterObj?.formation || lines.map((l) => l.length).join("-");
+  return { gk, lines, formation: formationName, starters };
+}
+
+function getLineXPositions(count) {
+  if (count <= 1) return [50];
+  if (count === 2) return [34, 66];
+  if (count === 3) return [22, 50, 78];
+  if (count === 4) return [14, 38, 62, 86];
+  if (count === 5) return [12, 31, 50, 69, 88];
+  const res = [];
+  for (let i = 0; i < count; i++) {
+    res.push(12 + i * (76 / (count - 1)));
+  }
+  return res;
+}
+
+const PORTRAIT_CACHE_PREFIX = "portrait_";
+const PORTRAIT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+async function getCachedPortrait(pName) {
+  try {
+    const key = PORTRAIT_CACHE_PREFIX + pName.toLowerCase();
+    const item = await Storage.get(key);
+    if (item && item.url && item.expiresAt && Date.now() < item.expiresAt) {
+      return item.url;
+    }
+  } catch (_e) {}
+  return null;
+}
+
+async function setCachedPortrait(pName, url) {
+  try {
+    const key = PORTRAIT_CACHE_PREFIX + pName.toLowerCase();
+    await Storage.set(key, { url, expiresAt: Date.now() + PORTRAIT_CACHE_TTL_MS });
+  } catch (_e) {}
+}
+
+function applyPitchPortrait(athleteId, url) {
+  if (!athleteId || !url) return;
+  const img = new Image();
+  img.onload = () => {
+    const imgEl = document.getElementById(`pitch-img-${athleteId}`);
+    const fallbackEl = document.getElementById(`pitch-fallback-${athleteId}`);
+    if (imgEl) {
+      imgEl.src = url;
+      imgEl.style.display = "block";
+    }
+    if (fallbackEl) {
+      fallbackEl.style.display = "none";
+    }
+  };
+  img.src = url;
+}
+
+async function loadPitchPortraitsBatched(starters) {
+  if (!starters || !starters.length) return;
+
+  const toFetch = [];
+  for (const p of starters) {
+    if (p.resolvedImg) continue;
+    const athlete = p.athlete || {};
+    const athleteId = String(athlete.id || p.id || "");
+    const name = athlete.fullName || athlete.displayName || athlete.name || "";
+    if (!name || !athleteId) continue;
+
+    const cached = await getCachedPortrait(name);
+    if (cached) {
+      p.resolvedImg = cached;
+      applyPitchPortrait(athleteId, cached);
+    } else {
+      toFetch.push({ athleteId, name });
+    }
+  }
+
+  const batchSize = 3;
+  for (let i = 0; i < toFetch.length; i += batchSize) {
+    const batch = toFetch.slice(i, i + batchSize);
+    await Promise.all(
+      batch.map(async ({ athleteId, name }) => {
+        const cleanName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        let cutout = null;
+        try {
+          const res = await fetch(
+            `https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(cleanName)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const pList = data?.player || [];
+            const withCutout = pList.find((pl) => pl.strCutout || pl.strRender || pl.strThumb) || pList[0];
+            cutout = withCutout?.strCutout || withCutout?.strRender || withCutout?.strThumb;
+          }
+        } catch (_e) {}
+
+        if (cutout) {
+          await setCachedPortrait(name, cutout);
+          applyPitchPortrait(athleteId, cutout);
+        }
+      })
+    );
+
+    if (i + batchSize < toFetch.length) {
+      await new Promise((r) => setTimeout(r, 60));
+    }
+  }
+}
+
+function renderPitchPlayerNode(p, topPct, leftPct) {
+  const athlete = p.athlete || {};
+  const athleteId = String(athlete.id || p.id || Math.random().toString(36).slice(2, 7));
+  const rawJersey = p.jersey != null ? String(p.jersey).replace(/^#/, "").trim() : "";
+  const shortName = athlete.shortName || athlete.displayName || athlete.name || "Player";
+  const fullName = athlete.fullName || athlete.displayName || shortName;
+
+  const verifiedImg = p.resolvedImg || (athlete.headshot?.href ? ensureHttps(athlete.headshot.href) : "");
+
+  const stats = p.stats || [];
+  const hasYellow = stats.some((s) => s.name === "yellowCards" && Number(s.value) > 0);
+  const hasRed = stats.some((s) => s.name === "redCards" && Number(s.value) > 0);
+  const hasGoal = stats.some((s) => (s.name === "totalGoals" || s.name === "goals") && Number(s.value) > 0);
+  const isCaptain = p.captain === true;
+
+  return `
+    <div class="pitch-player-node" style="top: ${topPct.toFixed(1)}%; left: ${leftPct.toFixed(1)}%;">
+      <div class="pitch-player-avatar-wrap">
+        <div class="pitch-avatar-circle">
+          <img class="pitch-player-img" id="pitch-img-${escapeHTML(athleteId)}"
+               src="${escapeHTML(verifiedImg)}"
+               alt="${escapeHTML(fullName)}"
+               data-athlete-id="${escapeHTML(athleteId)}"
+               loading="lazy"
+               ${!verifiedImg ? 'style="display:none;"' : ''}>
+          <div class="pitch-player-fallback" id="pitch-fallback-${escapeHTML(athleteId)}" ${verifiedImg ? 'style="display:none;"' : ''}>
+            <svg class="pitch-fallback-avatar" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v2h20v-2c0-3.33-6.67-5-10-5z"/>
+            </svg>
+          </div>
+        </div>
+        ${rawJersey ? `<span class="pitch-player-number">${escapeHTML(rawJersey)}</span>` : ""}
+        ${isCaptain ? `<span class="pitch-player-event-badge captain" title="Team Captain">C</span>` : ""}
+        ${hasGoal ? `<span class="pitch-player-event-badge goal" title="Goal Scored">⚽</span>` : ""}
+        ${hasYellow ? `<span class="pitch-player-event-badge card-yellow" title="Yellow Card"></span>` : ""}
+        ${hasRed ? `<span class="pitch-player-event-badge card-red" title="Red Card"></span>` : ""}
+      </div>
+      <span class="pitch-player-name" title="${escapeHTML(fullName)}">${escapeHTML(shortName)}</span>
+    </div>
+  `;
+}
+
+function calculateAvgAge(starters) {
+  if (!starters || !starters.length) return null;
+  const ages = starters.map((p) => parseInt(p.athlete?.age || p.age, 10)).filter((a) => !isNaN(a) && a > 15 && a < 50);
+  if (!ages.length) return null;
+  const avg = ages.reduce((s, v) => s + v, 0) / ages.length;
+  return avg.toFixed(1);
+}
+
+function renderPitchFormationHTML(homeRoster, awayRoster, meta) {
+  const homeData = buildTeamLines(homeRoster);
+  const awayData = buildTeamLines(awayRoster);
+
+  if (!homeData || !awayData) return "";
+
+  const homeLogo = meta.homeLogo || homeRoster.team?.logo || homeRoster.team?.logos?.[0]?.href || "";
+  const homeName = meta.homeName || homeRoster.team?.displayName || "Home Team";
+  const homeCoach = homeRoster.coach?.displayName || homeRoster.coach?.[0]?.displayName || "";
+  const homeAvgAge = calculateAvgAge(homeData.starters);
+
+  const awayLogo = meta.awayLogo || awayRoster.team?.logo || awayRoster.team?.logos?.[0]?.href || "";
+  const awayName = meta.awayName || awayRoster.team?.displayName || "Away Team";
+  const awayCoach = awayRoster.coach?.displayName || awayRoster.coach?.[0]?.displayName || "";
+  const awayAvgAge = calculateAvgAge(awayData.starters);
+
+  // Render Home Players (Top Half: 0% - 50%)
+  const homePlayerNodes = [];
+  if (homeData.gk) {
+    homePlayerNodes.push(renderPitchPlayerNode(homeData.gk, 6.5, 50));
+  }
+  const homeLines = homeData.lines;
+  const hL = homeLines.length;
+  homeLines.forEach((line, lineIdx) => {
+    const topPct = hL > 1 ? 16 + lineIdx * (26 / (hL - 1)) : 28;
+    const xPositions = getLineXPositions(line.length);
+    line.forEach((p, pIdx) => {
+      homePlayerNodes.push(renderPitchPlayerNode(p, topPct, xPositions[pIdx]));
+    });
+  });
+
+  // Render Away Players (Bottom Half: 50% - 100%)
+  const awayPlayerNodes = [];
+  const awayLines = [...awayData.lines].reverse();
+  const aL = awayLines.length;
+  awayLines.forEach((line, lineIdx) => {
+    const topPct = aL > 1 ? 57.5 + lineIdx * (26.5 / (aL - 1)) : 71;
+    const xPositions = getLineXPositions(line.length);
+    line.forEach((p, pIdx) => {
+      awayPlayerNodes.push(renderPitchPlayerNode(p, topPct, xPositions[pIdx]));
+    });
+  });
+  if (awayData.gk) {
+    awayPlayerNodes.push(renderPitchPlayerNode(awayData.gk, 93.5, 50));
+  }
+
+  return `
+    <div class="pitch-formation-wrap">
+      <!-- Home Manager / Team Header Bar -->
+      <div class="pitch-team-bar home-bar">
+        <div class="pitch-team-info">
+          ${homeLogo ? `<img class="pitch-team-crest" src="${escapeHTML(homeLogo)}" alt="${escapeHTML(homeName)}">` : `<div class="team-logo-placeholder">⚽</div>`}
+          <div class="pitch-team-text">
+            <span class="pitch-team-name">${escapeHTML(homeCoach || homeName)}</span>
+            <span class="pitch-team-sub">${escapeHTML(homeCoach ? homeName : "Home Starting XI")}</span>
+          </div>
+        </div>
+        <div class="pitch-stat-badge">
+          <span class="stat-badge-val">${escapeHTML(homeAvgAge || homeData.formation)}</span>
+          <span class="stat-badge-label">${homeAvgAge ? "AVERAGE AGE" : "FORMATION"}</span>
+        </div>
+      </div>
+
+      <!-- Soccer Pitch Board -->
+      <div class="pitch-board">
+        <svg class="pitch-markings" viewBox="0 0 400 580" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="pitchGrass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2E7D32"/>
+              <stop offset="50%" stop-color="#276C2B"/>
+              <stop offset="100%" stop-color="#1E5E24"/>
+            </linearGradient>
+            <pattern id="grassStripes" width="400" height="48.33" patternUnits="userSpaceOnUse">
+              <rect width="400" height="24.16" fill="rgba(255,255,255,0.035)"/>
+              <rect y="24.16" width="400" height="24.16" fill="rgba(0,0,0,0.035)"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="580" fill="url(#pitchGrass)"/>
+          <rect width="400" height="580" fill="url(#grassStripes)"/>
+          <rect x="16" y="16" width="368" height="548" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <line x1="16" y1="290" x2="384" y2="290" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <circle cx="200" cy="290" r="46" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <circle cx="200" cy="290" r="3" fill="rgba(255,255,255,0.7)"/>
+          <!-- Top Penalty Area -->
+          <rect x="88" y="16" width="224" height="92" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <rect x="144" y="16" width="112" height="34" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <circle cx="200" cy="76" r="3" fill="rgba(255,255,255,0.7)"/>
+          <path d="M 160 108 A 46 46 0 0 0 240 108" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <!-- Bottom Penalty Area -->
+          <rect x="88" y="472" width="224" height="92" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <rect x="144" y="530" width="112" height="34" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <circle cx="200" cy="504" r="3" fill="rgba(255,255,255,0.7)"/>
+          <path d="M 160 472 A 46 46 0 0 1 240 472" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <!-- Corner Arcs -->
+          <path d="M 16 28 A 12 12 0 0 0 28 16" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <path d="M 372 16 A 12 12 0 0 0 384 28" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <path d="M 16 552 A 12 12 0 0 1 28 564" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+          <path d="M 372 564 A 12 12 0 0 1 384 552" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>
+        </svg>
+
+        <!-- Formation corner pills -->
+        <div class="pitch-formation-tag top-tag">${escapeHTML(homeData.formation)}</div>
+        <div class="pitch-formation-tag bottom-tag">${escapeHTML(awayData.formation)}</div>
+
+        <!-- Home players -->
+        ${homePlayerNodes.join("")}
+
+        <!-- Away players -->
+        ${awayPlayerNodes.join("")}
+      </div>
+
+      <!-- Away Manager / Team Header Bar -->
+      <div class="pitch-team-bar away-bar">
+        <div class="pitch-team-info">
+          ${awayLogo ? `<img class="pitch-team-crest" src="${escapeHTML(awayLogo)}" alt="${escapeHTML(awayName)}">` : `<div class="team-logo-placeholder">⚽</div>`}
+          <div class="pitch-team-text">
+            <span class="pitch-team-name">${escapeHTML(awayCoach || awayName)}</span>
+            <span class="pitch-team-sub">${escapeHTML(awayCoach ? awayName : "Away Starting XI")}</span>
+          </div>
+        </div>
+        <div class="pitch-stat-badge">
+          <span class="stat-badge-val">${escapeHTML(awayAvgAge || awayData.formation)}</span>
+          <span class="stat-badge-label">${awayAvgAge ? "AVERAGE AGE" : "FORMATION"}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderLineupsHTML(data, meta) {
   const rosters = data?.rosters || [];
   const homeRoster = rosters.find((r) => r.homeAway === "home") || rosters[0];
@@ -416,10 +780,21 @@ function renderLineupsHTML(data, meta) {
     `;
   }
 
+  const pitchFormationHTML = renderPitchFormationHTML(homeRoster, awayRoster, meta);
+
   return `
-    <div class="lineups-dual-container">
-      ${renderRosterColumn(homeRoster, meta.homeName, meta.homeLogo)}
-      ${renderRosterColumn(awayRoster, meta.awayName, meta.awayLogo)}
+    <div class="lineups-view-wrap">
+      ${pitchFormationHTML}
+
+      <div class="lineup-roster-section">
+        <div class="lineup-section-header">
+          <h4 class="match-detail-section-title">DETAILED SQUADS & BENCH</h4>
+        </div>
+        <div class="lineups-dual-container">
+          ${renderRosterColumn(homeRoster, meta.homeName, meta.homeLogo)}
+          ${renderRosterColumn(awayRoster, meta.awayName, meta.awayLogo)}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -622,8 +997,43 @@ export async function init(container, navigate) {
     }
   }
 
+  // Pre-resolve cached portraits for starting XI players so they render instantly
+  const rosters = matchData?.rosters || [];
+  const homeRoster = rosters.find((r) => r.homeAway === "home") || rosters[0];
+  const awayRoster = rosters.find((r) => r.homeAway === "away") || rosters[1];
+  const allStarters = [
+    ...(homeRoster?.roster || []).filter((p) => p.starter),
+    ...(awayRoster?.roster || []).filter((p) => p.starter),
+  ];
+
+  await Promise.all(
+    allStarters.map(async (p) => {
+      const name = p.athlete?.fullName || p.athlete?.displayName || p.athlete?.name;
+      if (name) {
+        const cached = await getCachedPortrait(name);
+        if (cached) p.resolvedImg = cached;
+      }
+    })
+  );
+
   // Render match center layout (with data or graceful fallback)
   bodyEl.innerHTML = renderContentHTML(matchData, meta);
+
+  // Safety net: capture any image load errors on the pitch and fall back to SVG silhouette cleanly
+  bodyEl.addEventListener("error", (e) => {
+    if (e.target && e.target.classList.contains("pitch-player-img")) {
+      e.target.style.display = "none";
+      const athleteId = e.target.getAttribute("data-athlete-id");
+      const fallback = document.getElementById(`pitch-fallback-${athleteId}`);
+      if (fallback) fallback.style.display = "flex";
+    }
+  }, true);
+
+  // Background portrait resolution for any starters without a verified photo yet
+  const unresolvedStarters = allStarters.filter((p) => !p.resolvedImg && !p.athlete?.headshot?.href);
+  if (unresolvedStarters.length > 0) {
+    loadPitchPortraitsBatched(unresolvedStarters);
+  }
 
   // Wire Sub Tabs
   const tabBtns = bodyEl.querySelectorAll(".summary-tab-btn");
