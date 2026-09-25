@@ -5,8 +5,8 @@
  */
 
 import { Storage } from "../storage.js";
-import { escapeHTML, ensureHttps, formatKickoff, renderErrorState } from "../utils.js";
-import { getTeamSchedule, getTeamRoster, getTeamInfo } from "../api.js";
+import { escapeHTML, ensureHttps, formatKickoff, toInputValue, renderErrorState } from "../utils.js";
+import { getTeamSchedule, getTeamResults, getTeamRoster, getTeamInfo } from "../api.js";
 import { renderMatchCardHTML, normalizeEspnEvent } from "../components/match_card.js";
 
 const PORTRAIT_CACHE_PREFIX = "player-cutout:v2:";
@@ -25,7 +25,7 @@ function renderShellHTML() {
         </button>
         <div class="club-detail-tabs">
           <button class="tab-btn active" id="detailBtn">Club Detail</button>
-          <button class="tab-btn" id="matchesBtn">Fixtures</button>
+          <button class="tab-btn" id="matchesBtn">Matches</button>
           <button class="tab-btn" id="playersBtn">Players</button>
         </div>
       </div>
@@ -82,8 +82,11 @@ function renderClubDetailContentHTML(team, coachName, venueName) {
 
       <!-- Tab Jump Shortcuts -->
       <div class="club-quick-actions">
-        <button class="quick-action-btn" data-action="jump-tab" data-tab="fixtures">
-          <span>📅</span> VIEW FIXTURES ↗
+        <button class="quick-action-btn" data-action="jump-tab" data-tab="matches" data-preset="past">
+          <span>📜</span> PAST RESULTS ↗
+        </button>
+        <button class="quick-action-btn" data-action="jump-tab" data-tab="matches" data-preset="week">
+          <span>📅</span> UPCOMING FIXTURES ↗
         </button>
         <button class="quick-action-btn" data-action="jump-tab" data-tab="players">
           <span>👥</span> SQUAD & PLAYERS ↗
@@ -286,44 +289,242 @@ export async function init(container, navigate) {
     }
   }
 
-  // ---- 2. Load Fixtures View ----
-  async function loadMatches() {
+  // ---- 2. Load Club Matches View (Results & Fixtures with Date Pagination) ----
+  const CLUB_MATCHES_KEYS = { from: "clubMatchesFromDate", to: "clubMatchesToDate" };
+  let teamMatchesCache = null;
+  let cachedTeamId = null;
+
+  async function loadClubMatches(presetChoice = null) {
     if (!teamId) {
       clubContent.innerHTML = `<div class="info-msg">No club selected.</div>`;
       return;
     }
 
     setActiveTab(matchesBtn);
+
     clubContent.innerHTML = `
-      <div class="info-msg">
-        <div class="loader"></div>
-        <span>SCOUTING CLUB FIXTURES…</span>
+      <div class="club-matches-wrap">
+        <div class="matches-header-wrap">
+          <div class="date-presets" id="clubDatePresets">
+            <button class="preset-btn" data-preset="past">Past</button>
+            <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+            <button class="preset-btn" data-preset="today">Today</button>
+            <button class="preset-btn" data-preset="tomorrow">Tomorrow</button>
+            <button class="preset-btn" data-preset="week">7 Days</button>
+            <button class="preset-btn" data-preset="all">All</button>
+          </div>
+
+          <div id="date-filters">
+            <div class="date-field">
+              <label for="clubFromDate">From</label>
+              <input type="date" id="clubFromDate">
+            </div>
+            <div class="date-sep">→</div>
+            <div class="date-field">
+              <label for="clubToDate">To</label>
+              <input type="date" id="clubToDate">
+            </div>
+            <p id="clubDateError" class="date-error"></p>
+          </div>
+        </div>
+
+        <div id="clubMatchesContainer" class="fixtures-list">
+          <div class="info-msg">
+            <div class="loader"></div>
+            <span>CHECKING CLUB FIXTURES & RESULTS…</span>
+          </div>
+        </div>
       </div>
     `;
 
+    const presetsContainer = clubContent.querySelector("#clubDatePresets");
+    const fromInput        = clubContent.querySelector("#clubFromDate");
+    const toInput          = clubContent.querySelector("#clubToDate");
+    const dateError        = clubContent.querySelector("#clubDateError");
+    const matchesContainer = clubContent.querySelector("#clubMatchesContainer");
+
+    function validateDates() {
+      if (dateError) dateError.textContent = "";
+      if (!fromInput.value || !toInput.value) return false;
+      if (fromInput.value > toInput.value) {
+        if (dateError) dateError.textContent = "From date cannot be after To date.";
+        return false;
+      }
+      return true;
+    }
+
+    async function persistDates() {
+      if (!fromInput.value || !toInput.value) return;
+      await Promise.all([
+        Storage.set(CLUB_MATCHES_KEYS.from, fromInput.value),
+        Storage.set(CLUB_MATCHES_KEYS.to,   toInput.value),
+      ]);
+    }
+
+    function applyPreset(preset) {
+      const now = new Date();
+      if (preset === "past") {
+        const pStart = new Date(now);
+        pStart.setDate(now.getDate() - 60);
+        fromInput.value = toInputValue(pStart);
+        toInput.value   = toInputValue(now);
+      } else if (preset === "yesterday") {
+        const y = new Date(now);
+        y.setDate(now.getDate() - 1);
+        fromInput.value = toInputValue(y);
+        toInput.value   = toInputValue(y);
+      } else if (preset === "today") {
+        fromInput.value = toInputValue(now);
+        toInput.value   = toInputValue(now);
+      } else if (preset === "tomorrow") {
+        const t = new Date(now);
+        t.setDate(now.getDate() + 1);
+        fromInput.value = toInputValue(t);
+        toInput.value   = toInputValue(t);
+      } else if (preset === "week") {
+        const end = new Date(now);
+        end.setDate(now.getDate() + 7);
+        fromInput.value = toInputValue(now);
+        toInput.value   = toInputValue(end);
+      } else if (preset === "all") {
+        const allStart = new Date(now);
+        allStart.setDate(now.getDate() - 90);
+        const allEnd = new Date(now);
+        allEnd.setDate(now.getDate() + 180);
+        fromInput.value = toInputValue(allStart);
+        toInput.value   = toInputValue(allEnd);
+      }
+
+      presetsContainer?.querySelectorAll(".preset-btn").forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-preset") === preset);
+      });
+    }
+
+    function renderFilteredMatches(allMatches) {
+      if (!matchesContainer) return;
+      if (!validateDates()) return;
+
+      const from = fromInput.value;
+      const to   = toInput.value;
+
+      const filtered = allMatches.filter((m) => {
+        if (!m.rawDate) return true;
+        const dStr = toInputValue(new Date(m.rawDate));
+        return dStr >= from && dStr <= to;
+      });
+
+      // Sort: if viewing past results exclusively (to <= today), newest past results on top
+      // Otherwise chronological (nearest upcoming matches first)
+      const todayStr = toInputValue(new Date());
+      const isOnlyPast = to <= todayStr;
+      filtered.sort((a, b) => {
+        const tA = new Date(a.rawDate || a.kickoff).getTime();
+        const tB = new Date(b.rawDate || b.kickoff).getTime();
+        return isOnlyPast ? tB - tA : tA - tB;
+      });
+
+      if (!filtered.length) {
+        matchesContainer.innerHTML = `
+          <div class="info-msg">
+            <span>No fixtures or results found for selected dates.</span>
+          </div>
+        `;
+        return;
+      }
+
+      matchesContainer.innerHTML = filtered.map((d) => renderMatchCardHTML(d)).join("");
+    }
+
     try {
-      const data = await getTeamSchedule(teamId);
+      if (cachedTeamId !== teamId || !teamMatchesCache) {
+        const [resultsData, scheduleData] = await Promise.all([
+          getTeamResults(teamId).catch((err) => {
+            console.warn("Could not load past results:", err);
+            return null;
+          }),
+          getTeamSchedule(teamId).catch((err) => {
+            console.warn("Could not load upcoming fixtures:", err);
+            return null;
+          }),
+        ]);
 
-      if (!data?.events?.length) {
-        clubContent.innerHTML = `<div class="info-msg">No upcoming fixtures scheduled for this club.</div>`;
-        return;
+        const rawEvents = [
+          ...(resultsData?.events || []),
+          ...(scheduleData?.events || []),
+        ];
+
+        const seenIds = new Set();
+        const uniqueEvents = [];
+        for (const ev of rawEvents) {
+          if (ev?.id && !seenIds.has(ev.id)) {
+            seenIds.add(ev.id);
+            uniqueEvents.push(ev);
+          }
+        }
+
+        const normalizedList = uniqueEvents
+          .map((ev) => {
+            const d = normalizeEspnEvent(ev);
+            if (!d) return null;
+            const rawDate = ev.date || ev.competitions?.[0]?.date || "";
+            return { ...d, rawDate };
+          })
+          .filter(Boolean);
+
+        teamMatchesCache = normalizedList;
+        cachedTeamId = teamId;
       }
 
-      const matchDatas = data.events.map((match) => normalizeEspnEvent(match)).filter(Boolean);
+      // Initialize dates and presets
+      if (presetChoice) {
+        applyPreset(presetChoice);
+        await persistDates();
+      } else {
+        const [savedFrom, savedTo] = await Promise.all([
+          Storage.get(CLUB_MATCHES_KEYS.from),
+          Storage.get(CLUB_MATCHES_KEYS.to),
+        ]);
 
-      if (!matchDatas.length) {
-        clubContent.innerHTML = `<div class="info-msg">No fixture details available.</div>`;
-        return;
+        if (savedFrom && savedTo) {
+          fromInput.value = savedFrom;
+          toInput.value   = savedTo;
+        } else {
+          applyPreset("all");
+          await persistDates();
+        }
       }
 
-      clubContent.innerHTML = `
-        <div class="fixtures-list">
-          ${matchDatas.map((d) => renderMatchCardHTML(d)).join("")}
-        </div>
-      `;
+      // Hook up preset buttons
+      presetsContainer?.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".preset-btn");
+        if (!btn) return;
+        const preset = btn.getAttribute("data-preset");
+        applyPreset(preset);
+        await persistDates();
+        renderFilteredMatches(teamMatchesCache);
+      });
+
+      // Hook up date input change listeners
+      fromInput.addEventListener("change", async () => {
+        presetsContainer?.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active"));
+        await persistDates();
+        renderFilteredMatches(teamMatchesCache);
+      });
+
+      toInput.addEventListener("change", async () => {
+        presetsContainer?.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active"));
+        await persistDates();
+        renderFilteredMatches(teamMatchesCache);
+      });
+
+      renderFilteredMatches(teamMatchesCache);
     } catch (err) {
-      console.error("Error loading fixtures:", err);
-      renderErrorState(clubContent, "Failed to load club fixtures. Please try again.", () => loadMatches());
+      console.error("Error loading club matches:", err);
+      renderErrorState(
+        matchesContainer,
+        "Failed to load club matches. Please try again.",
+        () => loadClubMatches(presetChoice)
+      );
     }
   }
 
@@ -502,8 +703,9 @@ export async function init(container, navigate) {
     const jumpBtn = e.target.closest('[data-action="jump-tab"]');
     if (jumpBtn) {
       const targetTab = jumpBtn.getAttribute("data-tab");
-      if (targetTab === "fixtures") {
-        loadMatches();
+      const preset = jumpBtn.getAttribute("data-preset");
+      if (targetTab === "matches") {
+        loadClubMatches(preset);
       } else if (targetTab === "players") {
         loadPlayers();
       }
@@ -545,9 +747,20 @@ export async function init(container, navigate) {
     }
   });
 
+  // Keyboard accessibility for match cards
+  clubContent.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const card = e.target.closest(".match-card");
+      if (card) {
+        e.preventDefault();
+        card.click();
+      }
+    }
+  });
+
   // Wire Tab Buttons
   detailBtn.addEventListener("click", loadClubDetail);
-  matchesBtn.addEventListener("click", loadMatches);
+  matchesBtn.addEventListener("click", () => loadClubMatches());
   playersBtn.addEventListener("click", loadPlayers);
 
   // Default: Open Club Detail tab!

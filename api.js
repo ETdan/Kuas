@@ -223,6 +223,14 @@ export function getTeamSchedule(teamId) {
   );
 }
 
+/** Fetch past match history / results for a team. */
+export function getTeamResults(teamId) {
+  return fetchCached(
+    `https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/${teamId}/schedule`,
+    TTL.MATCHES
+  );
+}
+
 /**
  * Fetch the complete first-team squad roster for a team.
  * Uses ESPN Site API which returns the entire active roster in one call

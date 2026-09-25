@@ -34,9 +34,9 @@
   border: 1px solid var(--art-border);
   border-radius: 6px;
   font-family: var(--font-body);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -53,6 +53,118 @@
   border-color: var(--art-yellow);
   font-weight: 800;
   box-shadow: 0 2px 8px var(--art-yellow-glow);
+}
+
+/* ---- Club Matches Header & Date Pagination ---- */
+.club-matches-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 6px 16px 6px;
+}
+
+.matches-header-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--art-surface);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--art-border);
+}
+
+.date-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  background: rgba(10, 15, 29, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  color: var(--art-cream-muted);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+  background: var(--art-surface-hover);
+  color: var(--art-cream);
+  border-color: rgba(255, 209, 0, 0.4);
+}
+
+.preset-btn.active {
+  background: var(--art-yellow);
+  color: var(--art-navy-dark);
+  border-color: var(--art-yellow);
+  font-weight: 700;
+  box-shadow: 0 2px 8px var(--art-yellow-glow);
+}
+
+#date-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--art-navy-dark);
+  border: 1px solid var(--art-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.date-field label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--art-yellow);
+  letter-spacing: 0.05em;
+}
+
+.date-field input[type="date"] {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--art-cream);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.date-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.date-sep {
+  color: var(--art-cream-muted);
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.date-error {
+  margin: 0;
+  font-size: 0.7rem;
+  color: #F87171;
+  width: 100%;
 }
 
 /* ============================================================
