@@ -5,6 +5,7 @@
 
 import { Storage } from "../storage.js";
 import { clearCache } from "../api.js";
+import { checkUpdatePrompt } from "../update_prompt.js";
 
 // Format slug into readable competition title
 function formatLeagueSlug(slug) {
@@ -198,6 +199,7 @@ async function boot() {
   const lastViewedSlug = await Storage.get("lastViewedLeagueSlug");
 
   updateHeaderTitle(currentSlug);
+  checkUpdatePrompt();
 
   const tab = await Storage.get("lastTab", "matches");
 

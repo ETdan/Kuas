@@ -5,6 +5,7 @@
 
 import { Storage } from "../storage.js";
 import { clearCache } from "../api.js";
+import { checkUpdatePrompt } from "../update_prompt.js";
 
 const VIEW_LOADERS = {
   matches:     () => import("../matches/matches.js"),
@@ -160,6 +161,7 @@ updateNavLivePill();
 async function boot() {
   // Ensure leagueSlug is set to "all" for worldwide desk
   await Storage.set("leagueSlug", "all");
+  checkUpdatePrompt();
 
   const tab = await Storage.get("lastTab", "matches");
 

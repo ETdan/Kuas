@@ -7,6 +7,7 @@
 import { Storage } from "./storage.js";
 import { escapeHTML, ensureHttps } from "./utils.js";
 import { getLeagues, getLiveScoreboard } from "./api.js";
+import { checkUpdatePrompt } from "./update_prompt.js";
 
 const leaguesContainer = document.getElementById("leagues");
 const searchInput = document.getElementById("league-search");
@@ -347,6 +348,9 @@ async function start() {
   } catch (_e) {}
 
   if (!leaguesContainer) return;
+
+  // Prompt user if an extension update is available
+  checkUpdatePrompt();
 
   // Setup interactions and listeners
   setupEventListeners();

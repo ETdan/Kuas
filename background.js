@@ -76,9 +76,34 @@ function setupAlarm() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Extension Update Management
+// ---------------------------------------------------------------------------
+// Listen for update readiness (e.g. when triggered from popup requestUpdateCheck)
+if (typeof chrome !== "undefined" && chrome.runtime?.onUpdateAvailable) {
+  chrome.runtime.onUpdateAvailable.addListener((details) => {
+    chrome.storage.local.set({
+      updateAvailable: true,
+      updateVersion: details?.version || "",
+    });
+  });
+}
+
+// Allow popup to request immediate extension reload when user confirms update
+if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "RESTART_EXTENSION") {
+      chrome.runtime.reload();
+    }
+  });
+}
+
 // Lifecycle events
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   console.log("Kuas Football Extension installed successfully.");
+  if (details?.reason === "update") {
+    chrome.storage.local.remove(["updateAvailable", "updateVersion"]);
+  }
   chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: 0.1,
     periodInMinutes: CHECK_INTERVAL_MINUTES,
