@@ -429,10 +429,10 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--art-cream);
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
   width: 100%;
   max-width: 100%;
   display: block;

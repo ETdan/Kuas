@@ -296,10 +296,10 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--art-cream);
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
   width: 100%;
   max-width: 100%;
   display: block;
@@ -1227,9 +1227,10 @@
   font-size: 0.95rem;
   letter-spacing: 0.03em;
   color: var(--art-cream);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.15;
+  word-break: break-word;
+  overflow-wrap: break-word;
   width: 100%;
   max-width: 100%;
   display: block;
@@ -1342,9 +1343,8 @@
 
 .h2h-match-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--art-border);
@@ -1359,13 +1359,14 @@
 
 .h2h-match-meta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 80px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
 .h2h-comp {
-  font-size: 0.62rem;
+  font-size: 0.64rem;
   font-weight: 700;
   color: var(--art-yellow);
   letter-spacing: 0.04em;
@@ -1373,29 +1374,43 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .h2h-date {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   color: var(--art-cream-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .h2h-score-line {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
 }
 
 .h2h-team {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--art-cream-muted);
-  max-width: 110px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+}
+
+.h2h-team-home {
+  text-align: right;
+}
+
+.h2h-team-away {
+  text-align: left;
 }
 
 .h2h-team.winner {
@@ -1405,8 +1420,15 @@
 
 .h2h-score-digits {
   font-family: var(--font-display);
-  font-size: 0.95rem;
-  letter-spacing: 0.05em;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
   color: var(--art-yellow);
-  padding: 0 4px;
+  padding: 1px 8px;
+  background: rgba(255, 209, 0, 0.08);
+  border: 1px solid rgba(255, 209, 0, 0.2);
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: center;
 }

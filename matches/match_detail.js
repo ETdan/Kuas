@@ -505,9 +505,9 @@ function renderH2HAndFormHTML(data, meta) {
             <span class="h2h-date">${escapeHTML(date)}</span>
           </div>
           <div class="h2h-score-line">
-            <span class="h2h-team ${hWon ? "winner" : ""}">${escapeHTML(hTeam)}</span>
+            <span class="h2h-team h2h-team-home ${hWon ? "winner" : ""}">${escapeHTML(hTeam)}</span>
             <span class="h2h-score-digits">${escapeHTML(String(hScore))} : ${escapeHTML(String(aScore))}</span>
-            <span class="h2h-team ${aWon ? "winner" : ""}">${escapeHTML(aTeam)}</span>
+            <span class="h2h-team h2h-team-away ${aWon ? "winner" : ""}">${escapeHTML(aTeam)}</span>
           </div>
         </div>
       `;
