@@ -37,9 +37,18 @@
   border-radius: 50%;
 }
 
-.legend-pip.ucl { background: var(--art-yellow); box-shadow: 0 0 5px var(--art-yellow); }
-.legend-pip.uel { background: #38BDF8; }
-.legend-pip.rel { background: var(--art-red); }
+.legend-pip.ucl {
+  background: var(--art-yellow);
+  box-shadow: 0 0 5px var(--art-yellow);
+}
+
+.legend-pip.uel {
+  background: #38BDF8;
+}
+
+.legend-pip.rel {
+  background: var(--art-red);
+}
 
 /* ---- Table wrapper ---- */
 .table-wrapper {
@@ -134,6 +143,12 @@ td {
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.team-cell:hover .team-name {
+  color: var(--art-yellow);
 }
 
 .table-logo-wrap {
@@ -163,6 +178,7 @@ td {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;
+  transition: color 0.15s ease;
 }
 
 /* Points column */
@@ -179,8 +195,13 @@ td {
 }
 
 /* Row states */
-.standing-row:nth-child(even) { background: rgba(10, 15, 29, 0.4); }
-.standing-row:nth-child(odd)  { background: rgba(20, 30, 52, 0.5); }
+.standing-row:nth-child(even) {
+  background: rgba(10, 15, 29, 0.4);
+}
+
+.standing-row:nth-child(odd) {
+  background: rgba(20, 30, 52, 0.5);
+}
 
 .standing-row:hover {
   background: var(--art-surface-hover);
@@ -463,6 +484,11 @@ td {
   gap: 5px;
   min-width: 0;
   width: 100%;
+  cursor: pointer;
+}
+
+.leader-team-row:hover .leader-team-name {
+  color: var(--art-yellow);
 }
 
 .leader-team-logo {
@@ -480,6 +506,7 @@ td {
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
+  transition: color 0.15s ease;
 }
 
 /* Stat Box */
@@ -527,4 +554,3 @@ td {
 .leaderboard-empty .empty-icon {
   font-size: 2rem;
 }
-

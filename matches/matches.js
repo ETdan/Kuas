@@ -253,7 +253,7 @@ export async function init(container, navigate) {
         Storage.set("matchAwayName", awayName),
         Storage.set("matchAwayLogo", awayLogo),
         Storage.set("matchAwayScore", awayScore),
-        Storage.set("matchInitialTab", "timeline"),
+        Storage.set("matchInitialTab", "h2h"),
       ]);
       navigate("match_detail");
       return;

@@ -120,13 +120,15 @@ function renderRowHTML(row, index, totalRows) {
   else if (rank <= 6) zoneClass = "row-uel";
   else if (rank > totalRows - 3 && totalRows > 6) zoneClass = "row-rel";
 
+  const teamIdAttr = row.teamId ? `data-team-id="${escapeHTML(String(row.teamId))}"` : "";
+
   return `
     <tr class="standing-row ${zoneClass}">
       <td class="col-rk">
         <span class="rank-badge">${escapeHTML(String(rank))}</span>
       </td>
       <td class="col-team">
-        <div class="team-cell">
+        <div class="team-cell" ${teamIdAttr} role="button" tabindex="0" title="View ${escapeHTML(row.teamName)}">
           <div class="table-logo-wrap">${logoHTML}</div>
           <span class="team-name" title="${escapeHTML(row.teamName)}">${escapeHTML(row.teamName)}</span>
         </div>
@@ -264,7 +266,7 @@ function renderLeaderboardHTML(leaders, title, icon, unitLabel) {
             ${jersey ? `<span class="leader-jersey">${escapeHTML(jersey)}</span>` : ""}
             ${position ? `<span class="leader-pos">${escapeHTML(position)}</span>` : ""}
           </div>
-          <div class="leader-team-row">
+          <div class="leader-team-row" ${team.id ? `data-team-id="${escapeHTML(String(team.id))}" role="button" tabindex="0" title="View ${escapeHTML(teamName)}"` : ""}>
             ${teamLogo ? `<img class="leader-team-logo" src="${escapeHTML(teamLogo)}" alt="${escapeHTML(teamName)}">` : ""}
             <span class="leader-team-name">${escapeHTML(teamName)}</span>
           </div>
@@ -321,6 +323,7 @@ async function loadTable(contentContainer, slug) {
         const str = (key, fb = "-") => stats[key]?.displayValue ?? fb;
 
         return {
+          teamId: item.id || teamData?.id || "",
           rank: val("rank", 999),
           teamName,
           logo,
@@ -419,10 +422,10 @@ async function loadLeaderboard(contentContainer, slug, type) {
   }
 }
 
-export async function init(container) {
+export async function init(container, navigate) {
   const slug = await Storage.get("leagueSlug");
 
-  if (activeSlug !== slug) {
+  if (activeSlug !== slug || !tableDataCache?.[0]?.teamId) {
     activeSlug = slug;
     tableDataCache = null;
     statsDataCache = null;
@@ -437,6 +440,35 @@ export async function init(container) {
     contentArea.innerHTML = `<div class="leaderboard-empty"><p>No league selected.</p></div>`;
     return;
   }
+
+  // Delegated club click listener for table cells and leaderboard team rows
+  contentArea.addEventListener("click", async (e) => {
+    const clubEl = e.target.closest("[data-team-id]");
+    if (!clubEl) return;
+    const teamId = clubEl.getAttribute("data-team-id");
+    if (teamId) {
+      await Storage.set("teamId", teamId);
+      if (typeof navigate === "function") {
+        navigate("club_detail");
+      }
+    }
+  });
+
+  contentArea.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const clubEl = e.target.closest("[data-team-id]");
+      if (clubEl) {
+        e.preventDefault();
+        const teamId = clubEl.getAttribute("data-team-id");
+        if (teamId) {
+          await Storage.set("teamId", teamId);
+          if (typeof navigate === "function") {
+            navigate("club_detail");
+          }
+        }
+      }
+    }
+  });
 
   // Handle Tab Switch
   tabButtons.forEach((btn) => {

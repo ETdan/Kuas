@@ -76,7 +76,7 @@ function renderContentHTML(data, meta) {
   const kickoff = meta.kickoff || "";
   const leagueName = header.season?.displayName || comp.league?.name || "";
 
-  const activeTab = meta.initialTab || (isPre ? "h2h" : "timeline");
+  const activeTab = meta.initialTab || "h2h";
 
   // 1. Scoreboard Banner
   let centerScoreHTML = "";
@@ -598,7 +598,7 @@ export async function init(container, navigate) {
     awayName: awayName || "Away",
     awayLogo: awayLogo || "",
     awayScore: awayScore || "",
-    initialTab: initialTab || "timeline",
+    initialTab: initialTab || "h2h",
   };
 
   // Pre-load highlights promise immediately for snappy switching

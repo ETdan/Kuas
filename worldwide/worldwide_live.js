@@ -151,7 +151,7 @@ export async function init(container, navigate) {
         Storage.set("matchAwayName", card.getAttribute("data-away-name") || ""),
         Storage.set("matchAwayLogo", card.getAttribute("data-away-logo") || ""),
         Storage.set("matchAwayScore", card.getAttribute("data-away-score") || ""),
-        Storage.set("matchInitialTab", "timeline"),
+        Storage.set("matchInitialTab", "h2h"),
       ]);
       navigate("match_detail");
       return;
